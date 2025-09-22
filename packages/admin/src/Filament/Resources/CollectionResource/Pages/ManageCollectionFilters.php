@@ -7,8 +7,12 @@ use Filament\Forms\Form;
 use Filament\Support\Facades\FilamentIcon;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Contracts\Pagination\CursorPaginator;
+use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Lunar\Admin\Filament\Resources\CollectionResource;
 use Lunar\Admin\Support\Forms\Components\Attributes;
 use Lunar\Admin\Support\Pages\BaseManageRelatedRecords;
@@ -50,6 +54,30 @@ class ManageCollectionFilters extends BaseManageRelatedRecords
     public function getBreadcrumb(): string
     {
         return 'Filters';
+    }
+
+    public function getEloquentQuery(): Builder|Relation|null
+    {
+        $collection = $this->getOwnerRecord();
+
+        $ids = [$collection->id];
+
+        while ($collection->parent) {
+            $collection = $collection->parent;
+            $ids[] = $collection->id;
+        }
+
+        return Filter::whereIn('collection_id', $ids);
+    }
+
+    function paginateTableQuery(Builder $query): Paginator|CursorPaginator
+    {
+        return $this
+            ->getEloquentQuery()
+            ->simplePaginate(($this->getTableRecordsPerPage() === 'all')
+                ? $query->count()
+                : $this->getTableRecordsPerPage()
+            );
     }
 
     public function form(Form $form): Form
