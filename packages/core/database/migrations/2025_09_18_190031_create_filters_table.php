@@ -17,6 +17,7 @@ return new class extends Migration
                 ->foreignId('collection_id')
                 ->constrained('lunar_collections')
                 ->onDelete('cascade');
+            $table->jsonb('attribute_data')->nullable();
             $table->integer('type');
             $table->timestamps();
         });

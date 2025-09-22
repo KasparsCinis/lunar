@@ -19,6 +19,7 @@ use Lunar\Base\Traits\HasTranslations;
 use Lunar\Base\Traits\HasUrls;
 use Lunar\Base\Traits\Searchable;
 use Lunar\Database\Factories\CollectionFactory;
+use Lunar\Models\Filters\Filter;
 use Spatie\MediaLibrary\HasMedia as SpatieHasMedia;
 
 /**
@@ -98,6 +99,17 @@ class Collection extends BaseModel implements Contracts\Collection, HasThumbnail
         )->withPivot([
             'position',
         ])->withTimestamps()->orderByPivot('position');
+    }
+
+    /**
+     * Return the products relationship.
+     */
+    public function filters()
+    {
+        return $this->hasMany(
+            Filter::class,
+            'collection_id'
+        );
     }
 
     /**

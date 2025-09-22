@@ -1,13 +1,15 @@
 <?php
 
-namespace App\Models\Filters;
+namespace Lunar\Models\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Lunar\Base\BaseModel;
+use Lunar\Base\Casts\AsAttributeData;
 
 /**
  * @property integer  $id
  * @property integer  $collection_id
+ * @property ?\Illuminate\Support\Collection $attribute_data
  * @property integer  $type
  * @property string   $created_at
  * @property string   $updated_at
@@ -18,7 +20,12 @@ class Filter extends BaseModel
 {
     protected $table = 'filters';
     protected $fillable = [
+        'attribute_data',
         'collection_id',
         'type',
+    ];
+
+    protected $casts = [
+        'attribute_data' => AsAttributeData::class,
     ];
 }
