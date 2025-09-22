@@ -85,6 +85,7 @@ class ProductResource extends BaseResource
             Pages\ManageProductUrls::class,
             Pages\ManageProductCollections::class,
             Pages\ManageProductAssociations::class,
+            Pages\ManageProductFilters::class,
         ];
     }
 
@@ -367,6 +368,7 @@ class ProductResource extends BaseResource
             'urls' => Pages\ManageProductUrls::route('/{record}/urls'),
             'collections' => Pages\ManageProductCollections::route('/{record}/collections'),
             'associations' => Pages\ManageProductAssociations::route('/{record}/associations'),
+            'filters' => Pages\ManageProductFilters::route('/{record}/filters'),
         ];
     }
 

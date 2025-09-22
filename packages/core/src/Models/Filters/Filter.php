@@ -5,6 +5,7 @@ namespace Lunar\Models\Filters;
 use Illuminate\Database\Eloquent\Builder;
 use Lunar\Base\BaseModel;
 use Lunar\Base\Casts\AsAttributeData;
+use Lunar\Base\Traits\HasTranslations;
 
 /**
  * @property integer  $id
@@ -18,6 +19,8 @@ use Lunar\Base\Casts\AsAttributeData;
  */
 class Filter extends BaseModel
 {
+    use HasTranslations;
+    
     protected $table = 'filters';
     protected $fillable = [
         'attribute_data',

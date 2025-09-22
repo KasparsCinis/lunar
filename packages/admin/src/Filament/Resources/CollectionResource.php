@@ -97,6 +97,7 @@ class CollectionResource extends BaseResource
             Pages\ManageCollectionAvailability::class,
             Pages\ManageCollectionMedia::class,
             Pages\ManageCollectionUrls::class,
+            Pages\ManageCollectionFilters::class,
         ];
     }
 
@@ -110,6 +111,7 @@ class CollectionResource extends BaseResource
             'edit' => Pages\EditCollection::route('/{record}/edit'),
             'media' => Pages\ManageCollectionMedia::route('/{record}/media'),
             'urls' => Pages\ManageCollectionUrls::route('/{record}/urls'),
+            'filters' => Pages\ManageCollectionFilters::route('/{record}/filters'),
         ];
     }
 
