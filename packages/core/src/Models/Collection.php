@@ -101,9 +101,31 @@ class Collection extends BaseModel implements Contracts\Collection, HasThumbnail
         ])->withTimestamps()->orderByPivot('position');
     }
 
+    private $loadedFilters = null;
     /**
      * Return the products relationship.
      */
+    public function filtersAndParentFilters()
+    {
+        if ($this->loadedFilters) {
+            return $this->loadedFilters;
+        }
+
+        $collection = $this;
+
+        $ids = [$collection->id];
+
+        while ($collection->parent) {
+            $collection = $collection->parent;
+            $ids[] = $collection->id;
+        }
+
+        $this->loadedFilters = Filter::whereIn('collection_id', $ids)
+            ->get();
+
+        return $this->loadedFilters;
+    }
+
     public function filters()
     {
         return $this->hasMany(
