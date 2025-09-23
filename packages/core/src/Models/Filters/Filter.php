@@ -20,7 +20,9 @@ use Lunar\Base\Traits\HasTranslations;
 class Filter extends BaseModel
 {
     use HasTranslations;
-    
+
+    const TYPE_DROPDOWN = 1;
+
     protected $table = 'filters';
     protected $fillable = [
         'attribute_data',
