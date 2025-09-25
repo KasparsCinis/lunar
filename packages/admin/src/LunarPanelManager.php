@@ -240,7 +240,7 @@ class LunarPanelManager
             ->darkModeBrandLogo($brandAsset('lunar-logo-dark.svg'))
             ->favicon($brandAsset('lunar-icon.png'))
             ->brandLogoHeight('2rem')
-            ->path('lunar')
+            ->path('admin')
             ->authGuard('staff')
             ->defaultAvatarProvider(GravatarProvider::class)
             ->login()
