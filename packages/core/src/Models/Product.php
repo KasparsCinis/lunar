@@ -28,6 +28,7 @@ use Lunar\Base\Traits\Searchable;
 use Lunar\Database\Factories\ProductFactory;
 use Lunar\Jobs\Products\Associations\Associate;
 use Lunar\Jobs\Products\Associations\Dissociate;
+use Lunar\Models\Filters\FilterProduct;
 use Spatie\MediaLibrary\HasMedia as SpatieHasMedia;
 
 /**
@@ -117,6 +118,11 @@ class Product extends BaseModel implements Contracts\Product, HasThumbnailImage,
     public function variant(): HasOne
     {
         return $this->hasOne(ProductVariant::modelClass());
+    }
+
+    public function filterValues(): HasMany
+    {
+        return $this->hasMany(FilterProduct::modelClass(), 'product_id', 'id');
     }
 
     protected function hasVariants(): Attribute

@@ -79,6 +79,7 @@ class ManageProductFilters extends BaseEditRecord
     {
         $record = $this->getRecord();
         $filters = $this->getFilters();
+        $fields = [];
 
         foreach ($filters as $filter) {
             $existingValue = FilterProduct::where('product_id', $record->id)

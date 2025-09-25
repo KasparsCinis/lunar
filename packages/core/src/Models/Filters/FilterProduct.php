@@ -2,7 +2,9 @@
 
 namespace Lunar\Models\Filters;
 
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Lunar\Base\BaseModel;
 
 /**
@@ -23,4 +25,9 @@ class FilterProduct extends BaseModel
         'product_id',
         'value',
     ];
+
+    public function product(): HasOne
+    {
+        return $this->hasOne(Product::modelClass(), 'id', 'product_id');
+    }
 }
