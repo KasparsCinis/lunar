@@ -41,6 +41,7 @@ class MediaRelationManager extends BaseRelationManager
                     ->columnSpan(2)
                     ->hiddenOn('edit')
                     ->storeFiles(false)
+                    ->image()
                     ->imageEditor()
                     ->required()
                     ->imageEditorAspectRatios([
