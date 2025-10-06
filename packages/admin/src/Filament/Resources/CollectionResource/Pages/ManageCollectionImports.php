@@ -3,6 +3,7 @@
 namespace Lunar\Admin\Filament\Resources\CollectionResource\Pages;
 
 use Filament\Forms;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Form;
 use Filament\Support\Facades\FilamentIcon;
 use Filament\Tables;
@@ -18,6 +19,15 @@ use Lunar\Admin\Support\Forms\Components\Attributes;
 use Lunar\Admin\Support\Pages\BaseManageRelatedRecords;
 use Lunar\Facades\ModelManifest;
 use Lunar\Models\Filters\Filter;
+use Filament\Forms\Components\Wizard;
+use Filament\Forms\Components\Wizard\Step;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
+use Filament\Tables\Actions\Action;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Forms\Components\Select;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use Illuminate\Support\Facades\Storage;
 
 class ManageCollectionImports extends BaseManageRelatedRecords
 {
@@ -56,27 +66,112 @@ class ManageCollectionImports extends BaseManageRelatedRecords
         return 'Excels';
     }
 
-    public function form(Form $form): Form
+    private function steps()
     {
-        //@todo
-        return $form->schema([
-            Attributes::make()->using(Filter::class),
-            Forms\Components\Section::make()
+        return [
+            Step::make('Upload Files')
                 ->schema([
-                    Forms\Components\Select::make('type')
-                        ->label('Type')
-                        ->options([
-                            1 => 'Dropdown',
-                            2 => 'Dropdown (multiple)',
-                            3 => 'Slider'
+                    SpatieMediaLibraryFileUpload::make('excel_file')
+                        ->collection('import_excel')
+                        ->label('Excel File')
+                        ->required()
+                        ->acceptedFileTypes([
+                            'application/vnd.ms-excel',
+                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                         ])
-                ])->columnSpan(2),
-        ]);
+                        ->maxSize(10240)
+                        ->preserveFilenames()
+                        ->downloadable()
+                        ->openable()
+                        ->hint('Upload a single Excel file (.xls or .xlsx)')
+                        ->reactive(),
+
+                    SpatieMediaLibraryFileUpload::make('zip_file')
+                        ->collection('import_zip')
+                        ->label('ZIP images (optional)')
+                        ->acceptedFileTypes(['application/zip'])
+                        ->maxSize(51200)
+                        ->preserveFilenames()
+                        ->downloadable()
+                        ->openable()
+                        ->hint('Optional ZIP file containing images'),
+                ]),
+            Step::make('Column mapping')
+                ->schema([
+                    /*Forms\Components\View::make('filament.loading-excel')
+                        ->visible(fn($get) => empty($get('excel_columns')))
+                        ->viewData(['message' => 'Loading Excel columns...']),*/
+
+                    Repeater::make('column_mappings')
+                        ->label('Column Mappings')
+                        ->schema([
+                            Forms\Components\TextInput::make('column_name')
+                                ->label('Excel Column')
+                                ->disabled(),
+
+                            Select::make('mapped_to')
+                                ->label('Map To')
+                                ->options([
+                                    'name' => 'Product Name',
+                                    'sku' => 'SKU',
+                                    'price' => 'Price',
+                                    'quantity' => 'Quantity',
+                                    'description' => 'Description',
+                                ])
+                                ->searchable()
+                                ->required(),
+                        ])
+                        ->visible(fn($get) => filled($get('excel_columns')))
+                        ->defaultItems(0)
+                        ->columns(2)
+                        ->reactive(),
+                ])
+                ->afterStateUpdated(function ($component, $state, $set, $get) {
+                    $existingMapping = $get('column_mappings');
+
+                    if ($existingMapping) {
+                        return;
+                    }
+
+                    $temporaryUploadedFile = $get('excel_file');
+
+                    if (!$temporaryUploadedFile) {
+                        return;
+                    }
+                    if (is_array($temporaryUploadedFile)) {
+                        $temporaryUploadedFile = array_values($temporaryUploadedFile)[0];
+                    }
+
+                    $tempPath = $temporaryUploadedFile->getRealPath();
+
+                    try {
+                        $spreadsheet = IOFactory::load($tempPath);
+                        $sheet = $spreadsheet->getSheet(0);
+                        $headerRow = $sheet->rangeToArray(
+                            'A1:' . $sheet->getHighestColumn() . '1',
+                            null,
+                            true,
+                            true,
+                            true
+                        )[1];
+
+                        $columns = array_values($headerRow);
+
+                        // Now populate your repeater / form state
+                        $set('excel_columns', $columns);
+                        $set('column_mappings', collect($columns)->map(fn ($col) => [
+                            'column_name' => $col,
+                            'mapped_to' => null,
+                        ])->toArray());
+                    } catch (\Throwable $e) {
+                        logger()->error('Failed to parse Excel: ' . $e->getMessage());
+                    }
+                })
+        ];
     }
 
     public function table(Table $table): Table
     {
-        //@todo
         $record = $this->getOwnerRecord();
 
         return $table->columns([
@@ -89,7 +184,8 @@ class ManageCollectionImports extends BaseManageRelatedRecords
         ])
             ->actions([])
             ->headerActions([
-                Tables\Actions\CreateAction::make()->label('New excel import')
+                Tables\Actions\Action::make('New excel import')
+                    ->steps($this->steps())
             ]);
     }
 }
