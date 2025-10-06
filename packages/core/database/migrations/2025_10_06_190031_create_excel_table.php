@@ -18,6 +18,8 @@ return new class extends Migration
                 ->constrained('lunar_collections')
                 ->onDelete('cascade');
             $table->jsonb('column_mapping')->nullable();
+            $table->integer('status');
+            $table->string('progress');
             $table->timestamps();
         });
     }

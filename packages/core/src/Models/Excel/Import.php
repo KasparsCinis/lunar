@@ -4,22 +4,30 @@ namespace Lunar\Models\Excel;
 
 use Illuminate\Database\Eloquent\Builder;
 use Lunar\Base\BaseModel;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 /**
  * @property integer  $id
  * @property integer  $collection_id
  * @property array    $column_mapping
+ * @property integer  $status
+ * @property string   $progress
  * @property string   $created_at
  * @property string   $updated_at
  *
  * @mixin Builder
  */
-class Import extends BaseModel
+class Import extends BaseModel implements HasMedia
 {
+    use InteractsWithMedia;
+
     protected $table = 'imports';
     protected $fillable = [
         'collection_id',
         'column_mapping',
+        'status',
+        'progress',
     ];
 
     protected $casts = [

@@ -18,6 +18,7 @@ use Lunar\Admin\Filament\Resources\CollectionResource;
 use Lunar\Admin\Support\Forms\Components\Attributes;
 use Lunar\Admin\Support\Pages\BaseManageRelatedRecords;
 use Lunar\Facades\ModelManifest;
+use Lunar\Models\Excel\Import;
 use Lunar\Models\Filters\Filter;
 use Filament\Forms\Components\Wizard;
 use Filament\Forms\Components\Wizard\Step;
@@ -66,6 +67,24 @@ class ManageCollectionImports extends BaseManageRelatedRecords
         return 'Excels';
     }
 
+    private function mapColumns()
+    {
+        $filters = [];
+
+        foreach ($this->record->filtersAndParentFilters() as $filter) {
+            $filters['filter-' . $filter->id] = $filter->translateAttribute('name');
+        }
+
+        return [
+            'name_lv' => 'Product Name LV',
+            'name_en' => 'Product Name EN',
+            'description_lv' => 'Description LV',
+            'description_en' => 'Description EN',
+            'sku' => 'SKU',
+            'price' => 'Price',
+        ] + $filters;
+    }
+
     private function steps()
     {
         return [
@@ -98,11 +117,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                 ]),
             Step::make('Column mapping')
                 ->schema([
-                    /*Forms\Components\View::make('filament.loading-excel')
-                        ->visible(fn($get) => empty($get('excel_columns')))
-                        ->viewData(['message' => 'Loading Excel columns...']),*/
-
-                    Repeater::make('column_mappings')
+                    Repeater::make('column_mapping')
                         ->label('Column Mappings')
                         ->schema([
                             Forms\Components\TextInput::make('column_name')
@@ -111,23 +126,17 @@ class ManageCollectionImports extends BaseManageRelatedRecords
 
                             Select::make('mapped_to')
                                 ->label('Map To')
-                                ->options([
-                                    'name' => 'Product Name',
-                                    'sku' => 'SKU',
-                                    'price' => 'Price',
-                                    'quantity' => 'Quantity',
-                                    'description' => 'Description',
-                                ])
-                                ->searchable()
-                                ->required(),
+                                ->options($this->mapColumns())
+                                ->searchable(),
                         ])
                         ->visible(fn($get) => filled($get('excel_columns')))
                         ->defaultItems(0)
                         ->columns(2)
-                        ->reactive(),
+                        ->reactive()
+                        ->addable(false),
                 ])
                 ->afterStateUpdated(function ($component, $state, $set, $get) {
-                    $existingMapping = $get('column_mappings');
+                    $existingMapping = $get('column_mapping');
 
                     if ($existingMapping) {
                         return;
@@ -156,10 +165,11 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                         )[1];
 
                         $columns = array_values($headerRow);
+                        $columns = array_filter($columns);
 
                         // Now populate your repeater / form state
                         $set('excel_columns', $columns);
-                        $set('column_mappings', collect($columns)->map(fn ($col) => [
+                        $set('column_mapping', collect($columns)->map(fn ($col) => [
                             'column_name' => $col,
                             'mapped_to' => null,
                         ])->toArray());
@@ -186,6 +196,21 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             ->headerActions([
                 Tables\Actions\Action::make('New excel import')
                     ->steps($this->steps())
+                    ->extraAttributes(['data-submit-scope' => 'all'])
+                    ->action(function (array $data, Form $form) {
+                        //@todo - check
+
+                        $record = Import::create([
+                            'collection_id' => $this->record->id,
+                            'status' => 1,
+                            'progress' => 'Pending...'
+                        ]);
+
+                        $form->model($record)->saveRelationships();
+                        //dd($this->record->id);
+                        // 3️⃣ Notify success
+                        //$this->notify('success', 'Excel import created successfully.');
+                    })
             ]);
     }
 }
