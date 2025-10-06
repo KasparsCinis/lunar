@@ -19,6 +19,7 @@ use Lunar\Base\Traits\HasTranslations;
 use Lunar\Base\Traits\HasUrls;
 use Lunar\Base\Traits\Searchable;
 use Lunar\Database\Factories\CollectionFactory;
+use Lunar\Models\Excel\Import;
 use Lunar\Models\Filters\Filter;
 use Spatie\MediaLibrary\HasMedia as SpatieHasMedia;
 
@@ -130,6 +131,14 @@ class Collection extends BaseModel implements Contracts\Collection, HasThumbnail
     {
         return $this->hasMany(
             Filter::class,
+            'collection_id'
+        );
+    }
+
+    public function imports()
+    {
+        return $this->hasMany(
+            Import::class,
             'collection_id'
         );
     }
