@@ -1,6 +1,6 @@
 <?php
 
-namespace Lunar\Models\Filters;
+namespace Lunar\Models\Excel;
 
 use Illuminate\Database\Eloquent\Builder;
 use Lunar\Base\BaseModel;
