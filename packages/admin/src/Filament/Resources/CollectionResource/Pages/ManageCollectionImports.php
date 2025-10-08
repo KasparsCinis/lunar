@@ -18,6 +18,7 @@ use Lunar\Admin\Filament\Resources\CollectionResource;
 use Lunar\Admin\Support\Forms\Components\Attributes;
 use Lunar\Admin\Support\Pages\BaseManageRelatedRecords;
 use Lunar\Facades\ModelManifest;
+use Lunar\Jobs\Imports\ImportExcelJob;
 use Lunar\Models\Excel\Import;
 use Lunar\Models\Filters\Filter;
 use Filament\Forms\Components\Wizard;
@@ -27,11 +28,14 @@ use Filament\Forms\Components\Repeater;
 use Filament\Tables\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Forms\Components\Select;
+use Mary\Traits\Toast;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\Storage;
 
 class ManageCollectionImports extends BaseManageRelatedRecords
 {
+    use Toast;
+
     protected static string $resource = CollectionResource::class;
 
     protected static string $relationship = 'imports';
@@ -82,6 +86,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             'description_en' => 'Description EN',
             'sku' => 'SKU',
             'price' => 'Price',
+            'image' => 'Image'
         ] + $filters;
     }
 
@@ -169,10 +174,12 @@ class ManageCollectionImports extends BaseManageRelatedRecords
 
                         // Now populate your repeater / form state
                         $set('excel_columns', $columns);
-                        $set('column_mapping', collect($columns)->map(fn ($col) => [
-                            'column_name' => $col,
-                            'mapped_to' => null,
-                        ])->toArray());
+                        $set('column_mapping', collect($columns)->map(function ($col) {
+                            return [
+                                'column_name' => $col,
+                                'mapped_to' => str_contains($col, 'image') ? 'image' : null,
+                            ];
+                        })->toArray());
                     } catch (\Throwable $e) {
                         logger()->error('Failed to parse Excel: ' . $e->getMessage());
                     }
@@ -202,14 +209,17 @@ class ManageCollectionImports extends BaseManageRelatedRecords
 
                         $record = Import::create([
                             'collection_id' => $this->record->id,
-                            'status' => 1,
+                            'status' => Import::STATUS_PENDING,
+                            'column_mapping' => $data['column_mapping'],
                             'progress' => 'Pending...'
                         ]);
 
                         $form->model($record)->saveRelationships();
-                        //dd($this->record->id);
-                        // 3️⃣ Notify success
-                        //$this->notify('success', 'Excel import created successfully.');
+
+                        ImportExcelJob::dispatch($record->id)
+                            ->delay(now()->addSeconds(5));
+
+                        $this->success('Excel import started');
                     })
             ]);
     }
