@@ -175,9 +175,9 @@ class ImportExcelJob implements ShouldQueue
                              * Sometimes zip files are too big - in which case images might already be uploaded beforehand to storage
                              * Check if the images don't already exist
                              */
-                            if (Storage::disk($disk)->exists('zipImages/' . $imagePath)) {
+                            if ($disk->exists('zipImages/' . $imagePath)) {
                                 $tempFile = tempnam(sys_get_temp_dir(), 'img_');
-                                $stream = Storage::disk($disk)->readStream('zipImages/' . $imagePath);
+                                $stream = $disk->readStream('zipImages/' . $imagePath);
 
                                 if ($stream) {
                                     file_put_contents($tempFile, stream_get_contents($stream));
