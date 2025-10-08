@@ -5,9 +5,11 @@ namespace Lunar\Admin\Filament\Resources\CollectionResource\Pages;
 use Filament\Forms;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Support\Facades\FilamentIcon;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Actions;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Contracts\Support\Htmlable;
@@ -245,13 +247,34 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                 Tables\Actions\Action::make('New excel import')
                     ->steps($this->steps())
                     ->extraAttributes(['data-submit-scope' => 'all'])
-                    ->action(function (array $data, Form $form) {
-                        //@todo - check
+                    ->action(function (array $data, Form $form, Action $action) {
+                        $mappedColumns = array_map(fn($item) => $item['mapped_to'], $data['column_mapping']);
+                        $missingColumns = [];
+
+                        if (!in_array('sku', $mappedColumns)) {
+                            $missingColumns[] = 'SKU';
+                        }
+                        if (!in_array('price', $mappedColumns)) {
+                            $missingColumns[] = 'Price';
+                        }
+
+                        if ($missingColumns) {
+                            $action->failureNotification(
+                                fn () => Notification::make('refund_failure')
+                                    ->color('danger')
+                                    ->title("Missing columns - " . implode(',', $missingColumns))
+                            );
+
+                            $action->failure();
+                            $action->halt();
+
+                            return;
+                        }
 
                         $record = Import::create([
                             'collection_id' => $this->record->id,
                             'status' => Import::STATUS_PENDING,
-                            'column_mapping' => $mapping = array_map(fn($item) => $item['mapped_to'], $data['column_mapping']),
+                            'column_mapping' => $mappedColumns,
                             'progress' => 'Preparing to import'
                         ]);
 

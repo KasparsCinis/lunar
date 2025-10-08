@@ -10,6 +10,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Lunar\Facades\DB;
 use Lunar\FieldTypes\TranslatedText;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
@@ -18,14 +19,15 @@ use Lunar\Models\Filters\FilterProduct;
 use Lunar\Models\Product;
 use Lunar\Models\ProductType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Row;
 use ZipArchive;
 
 class ImportExcelJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 60;
-    public $tries = 1;
+    public $timeout = 0;
+    public $failOnTimeout = true;
 
     protected string $importId;
     protected Import $import;
@@ -37,6 +39,8 @@ class ImportExcelJob implements ShouldQueue
 
     public function handle(): void
     {
+        DB::disableQueryLog();
+
         try {
             $this->import = Import::findOrFail($this->importId);
 
@@ -55,7 +59,7 @@ class ImportExcelJob implements ShouldQueue
                 /** Download excel */
                 $excelPath = tempnam(sys_get_temp_dir(), 'excel_');
                 $stream = $disk->readStream($excelMedia->getPathRelativeToRoot());
-                
+
                 file_put_contents($excelPath, stream_get_contents($stream));
                 fclose($stream);
             }
@@ -85,18 +89,28 @@ class ImportExcelJob implements ShouldQueue
 
             $spreadsheet = IOFactory::load($excelPath);
             $sheet = $spreadsheet->getActiveSheet();
-            $rows = $sheet->toArray(null, true, true, true);
-
             $mapping = $this->import->column_mapping;
 
-            foreach ($rows as $rowIndex => $row) {
-                $row = array_values($row);
+            /** @var $rowModel Row */
+            foreach ($sheet->getRowIterator() as $rowIndex => $rowModel) {
+                $cellIterator = $rowModel->getCellIterator();
+                $cellIterator->setIterateOnlyExistingCells(false);
+
+                $row = [];
+                foreach ($cellIterator as $cell) {
+                    $row[] = $cell->getValue();
+                }
 
                 if ($rowIndex == 1) {
                     continue;
                 }
                 if (!array_filter($row)) {
                     continue;
+                }
+
+                if ($rowIndex % 20 == 0) {
+                    $this->import->progress = "Imported {$rowIndex}";
+                    $this->import->saveOrFail();
                 }
 
                 $data = [
@@ -197,6 +211,11 @@ class ImportExcelJob implements ShouldQueue
                 }
 
                 Log::info("Imported product: {$product->translateAttribute('name', 'en')}");
+
+                if ($rowIndex % 25 === 0) {
+                    gc_collect_cycles();
+                    DB::disconnect();
+                }
             }
 
             if ($zipImagesPath) {
