@@ -88,11 +88,7 @@ class ManageCollectionFilters extends BaseManageRelatedRecords
                 ->schema([
                     Forms\Components\Select::make('type')
                         ->label('Type')
-                        ->options([
-                            1 => 'Dropdown',
-                            2 => 'Dropdown (multiple)',
-                            3 => 'Slider'
-                        ])
+                        ->options(Filter::dropdown())
                 ])->columnSpan(2),
         ]);
     }

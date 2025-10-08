@@ -22,6 +22,8 @@ class Filter extends BaseModel
     use HasTranslations;
 
     const TYPE_DROPDOWN = 1;
+    const TYPE_DROPDOWN_MULTIPLE = 2;
+    const TYPE_SLIDER = 3;
 
     protected $table = 'filters';
     protected $fillable = [
@@ -33,4 +35,13 @@ class Filter extends BaseModel
     protected $casts = [
         'attribute_data' => AsAttributeData::class,
     ];
+
+    public static function dropdown() : array
+    {
+        return [
+            self::TYPE_DROPDOWN => 'Dropdown',
+            self::TYPE_DROPDOWN_MULTIPLE => 'Dropdown (multiple)',
+            self::TYPE_SLIDER => 'Slider'
+        ];
+    }
 }
