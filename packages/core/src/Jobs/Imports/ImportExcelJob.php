@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 use Lunar\FieldTypes\TranslatedText;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
+use Lunar\Models\Filters\Filter;
+use Lunar\Models\Filters\FilterProduct;
 use Lunar\Models\Product;
 use Lunar\Models\ProductType;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -117,6 +119,19 @@ class ImportExcelJob implements ShouldQueue
                     ]),
                 ]);
 
+                foreach ($mapping as $key => $columnType) {
+                    if (Str::contains($columnType, 'filter-')
+                        && $data[$columnType]
+                        && $id = explode('-', $columnType)[1] ?? null
+                    ) {
+                        FilterProduct::create([
+                            'filter_id' => $id,
+                            'product_id' => $product->id,
+                            'value' => $data[$columnType]
+                        ]);
+                    }
+                }
+
                 $product->collections()->attach($this->import->collection_id);
 
                 // Create variant
@@ -132,12 +147,12 @@ class ImportExcelJob implements ShouldQueue
                 ]);
 
                 // Attach images if zip provided
-                if ($zipImagesPath && !empty($data['images'])) {
+                if (!empty($data['images'])) {
                     foreach ($data['images'] as $imagePath) {
-                        $imagePath = $this->findImagePath($zipImagesPath,  trim($imagePath));
+                        $imagePathFromZip = $this->findImagePath($zipImagesPath, trim($imagePath));
 
-                        if ($imagePath && file_exists($imagePath)) {
-                            $product->addMedia($imagePath)
+                        if ($imagePathFromZip && file_exists($imagePathFromZip)) {
+                            $product->addMedia($imagePathFromZip)
                                 ->preservingOriginal()
                                 ->toMediaCollection('images');
                         } else {
@@ -145,9 +160,9 @@ class ImportExcelJob implements ShouldQueue
                              * Sometimes zip files are too big - in which case images might already be uploaded beforehand to storage
                              * Check if the images don't already exist
                              */
-                            if (Storage::exists('zipImages/' . $imagePath)) {
+                            if (Storage::disk(config('media-library.disk_name'))->exists('zipImages/' . $imagePath)) {
                                 $tempFile = tempnam(sys_get_temp_dir(), 'img_');
-                                $stream = Storage::readStream('zipImages/' . $imagePath);
+                                $stream = Storage::disk(config('media-library.disk_name'))->readStream('zipImages/' . $imagePath);
 
                                 if ($stream) {
                                     file_put_contents($tempFile, stream_get_contents($stream));

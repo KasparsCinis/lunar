@@ -142,7 +142,9 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                         ->defaultItems(0)
                         ->columns(2)
                         ->reactive()
-                        ->addable(false),
+                        ->addable(false)
+                        ->reorderable(false)
+                        ->deletable(false),
                 ])
                 ->afterStateUpdated(function ($component, $state, $set, $get) {
                     $existingMapping = $get('column_mapping');
