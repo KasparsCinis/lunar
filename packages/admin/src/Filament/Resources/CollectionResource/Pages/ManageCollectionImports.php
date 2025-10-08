@@ -219,7 +219,24 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Created at'),
         ])
-            ->actions([])
+            ->actions([
+                Action::make('Try again')
+                    ->requiresConfirmation()
+                    ->action(function (Import $record) {
+                        $record->update([
+                            'status' => Import::STATUS_PENDING,
+                            'progress' => 'Preparing to import'
+                        ]);
+
+                        ImportExcelJob::dispatch($record->id)
+                            ->delay(now()->addSeconds(5));
+
+                        $this->success('Import re-importing');
+
+                        return redirect(request()->header('Referer'));
+                    })
+                    ->visible(fn (Import $record) => $record->status == Import::STATUS_ERROR)
+            ])
             ->headerActions([
                 Tables\Actions\Action::make('New excel import')
                     ->steps($this->steps())

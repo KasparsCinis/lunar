@@ -184,7 +184,7 @@ class ImportExcelJob implements ShouldQueue
             if ($this->import) {
                 $this->import->status = Import::STATUS_ERROR;
                 $this->import->progress = Str::limit('Failed - ' . $e->getMessage(), 200);
-                $this->import->save();
+                $this->import->saveOrFail();
             }
         }
     }
