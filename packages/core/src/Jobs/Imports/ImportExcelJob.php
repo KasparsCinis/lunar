@@ -39,7 +39,11 @@ class ImportExcelJob implements ShouldQueue
     {
         try {
             $this->import = Import::findOrFail($this->importId);
+
+            $disk = Storage::disk(config('media-library.disk_name'));
             $currency = Currency::where('code', 'eur')->first();
+            $excelPath = "";
+            $zipPath = "";
 
             $excelMedia = $this->import->getFirstMedia('import_excel');
             if (!$excelMedia) {
@@ -47,17 +51,28 @@ class ImportExcelJob implements ShouldQueue
                 $this->import->progress = 'No Excel file attached to import.';
                 $this->import->saveOrFail();
                 return;
+            } else {
+                /** Download excel */
+                $excelPath = tempnam(sys_get_temp_dir(), 'excel_');
+                $stream = $disk->readStream($excelMedia->getPathRelativeToRoot());
+                
+                file_put_contents($excelPath, stream_get_contents($stream));
+                fclose($stream);
             }
 
             $this->import->status = Import::STATUS_IN_PROGRESS;
             $this->import->progress = 'Importing';
             $this->import->saveOrFail();
 
-            $excelPath = $excelMedia->getPath();
-
             $zipImagesPath = null;
             if ($zipMedia = $this->import->getFirstMedia('import_zip')) {
-                $zipPath = $zipMedia->getPath();
+                /** Download zip */
+                $zipPath = tempnam(sys_get_temp_dir(), 'zip_');
+                $stream = $disk->readStream($zipMedia->getPathRelativeToRoot());
+
+                file_put_contents($zipPath, stream_get_contents($stream));
+                fclose($stream);
+
                 $zipImagesPath = storage_path('app/tmp/import_images_' . $this->import->id);
                 @mkdir($zipImagesPath, 0777, true);
 
@@ -160,9 +175,9 @@ class ImportExcelJob implements ShouldQueue
                              * Sometimes zip files are too big - in which case images might already be uploaded beforehand to storage
                              * Check if the images don't already exist
                              */
-                            if (Storage::disk(config('media-library.disk_name'))->exists('zipImages/' . $imagePath)) {
+                            if (Storage::disk($disk)->exists('zipImages/' . $imagePath)) {
                                 $tempFile = tempnam(sys_get_temp_dir(), 'img_');
-                                $stream = Storage::disk(config('media-library.disk_name'))->readStream('zipImages/' . $imagePath);
+                                $stream = Storage::disk($disk)->readStream('zipImages/' . $imagePath);
 
                                 if ($stream) {
                                     file_put_contents($tempFile, stream_get_contents($stream));
@@ -187,11 +202,17 @@ class ImportExcelJob implements ShouldQueue
             if ($zipImagesPath) {
                 Storage::deleteDirectory($zipImagesPath);
             }
+            if ($excelPath) {
+                @unlink($excelPath);
+            }
+            if ($zipPath) {
+                @unlink($zipPath);
+            }
 
             $this->import->status = Import::STATUS_SUCCESS;
             $this->import->progress = 'Imported';
             $this->import->saveOrFail();
-        } catch (\Exception $e) {
+        } catch (\Exception | \Throwable $e) {
             Log::error('Failed to import', [
                 'error' => $e->getMessage(),
             ]);

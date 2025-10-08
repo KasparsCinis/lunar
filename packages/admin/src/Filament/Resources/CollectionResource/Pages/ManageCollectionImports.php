@@ -108,6 +108,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                         ->downloadable()
                         ->openable()
                         ->hint('Upload a single Excel file (.xls or .xlsx)')
+                        ->disk(config('media-library.disk_name'))
                         ->reactive(),
 
                     SpatieMediaLibraryFileUpload::make('zip_file')
@@ -122,6 +123,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                         ->preserveFilenames()
                         ->downloadable()
                         ->openable()
+                        ->disk(config('media-library.disk_name'))
                         ->hint('Optional ZIP file containing images'),
                 ]),
             Step::make('Column mapping')
