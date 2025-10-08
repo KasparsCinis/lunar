@@ -113,7 +113,11 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                     SpatieMediaLibraryFileUpload::make('zip_file')
                         ->collection('import_zip')
                         ->label('ZIP images (optional)')
-                        ->acceptedFileTypes(['application/zip'])
+                        ->acceptedFileTypes([
+                            'application/zip',
+                            '.zip',
+                            'application/x-zip-compressed'
+                        ])
                         ->maxSize(51200)
                         ->preserveFilenames()
                         ->downloadable()
@@ -192,12 +196,28 @@ class ManageCollectionImports extends BaseManageRelatedRecords
         $record = $this->getOwnerRecord();
 
         return $table->columns([
-            Tables\Columns\TextColumn::make('type')
-                ->label('Type')
-                ->formatStateUsing(fn (Model $record) => $record->type),
-            Tables\Columns\TextColumn::make('attribute_data.name')
-                ->label('Name')
-                ->formatStateUsing(fn (Model $record) => $record->attr('name')),
+            Tables\Columns\TextColumn::make('id')
+                ->label('ID'),
+            Tables\Columns\TextColumn::make('status')
+                ->label('Status')
+                ->color(fn (int $state): string => match ($state) {
+                    Import::STATUS_PENDING => 'gray',
+                    Import::STATUS_IN_PROGRESS => 'info',
+                    Import::STATUS_ERROR => 'danger',
+                    Import::STATUS_SUCCESS => 'success'
+                })
+                ->formatStateUsing(fn (int $state): string => match ($state) {
+                    Import::STATUS_PENDING => 'Pending',
+                    Import::STATUS_IN_PROGRESS => 'In progress',
+                    Import::STATUS_ERROR => 'Error',
+                    Import::STATUS_SUCCESS => 'Success',
+                })
+                ->alignCenter(),
+            Tables\Columns\TextColumn::make('progress')
+                ->label('Progress')
+                ->wrap(),
+            Tables\Columns\TextColumn::make('created_at')
+                ->label('Created at'),
         ])
             ->actions([])
             ->headerActions([
@@ -210,8 +230,8 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                         $record = Import::create([
                             'collection_id' => $this->record->id,
                             'status' => Import::STATUS_PENDING,
-                            'column_mapping' => $data['column_mapping'],
-                            'progress' => 'Pending...'
+                            'column_mapping' => $mapping = array_map(fn($item) => $item['mapped_to'], $data['column_mapping']),
+                            'progress' => 'Preparing to import'
                         ]);
 
                         $form->model($record)->saveRelationships();
@@ -221,7 +241,8 @@ class ManageCollectionImports extends BaseManageRelatedRecords
 
                         $this->success('Excel import started');
                     })
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 }
 

@@ -24,6 +24,8 @@ class Import extends BaseModel implements HasMedia
     
     const STATUS_PENDING = 1;
     const STATUS_IN_PROGRESS = 2;
+    const STATUS_ERROR = 3;
+    const STATUS_SUCCESS = 4;
 
     protected $table = 'imports';
     protected $fillable = [

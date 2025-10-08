@@ -41,8 +41,7 @@
         "stripe/stripe-php": "^16.0",
         "technikermathe/blade-lucide-icons": "^v3.0",
         "typesense/typesense-php": "^4.9",
-        "phpoffice/phpspreadsheet": "^5.1",
-        "maatwebsite/excel": "^3.1"
+        "phpoffice/phpspreadsheet": "^5.1"
     },
     "require-dev": {
         "larastan/larastan": "^2.9|^3.0",
