@@ -16,6 +16,7 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Lunar\Admin\Excel\ExportLunarProducts;
 use Lunar\Admin\Filament\Resources\CollectionResource;
 use Lunar\Admin\Support\Forms\Components\Attributes;
 use Lunar\Admin\Support\Pages\BaseManageRelatedRecords;
@@ -82,6 +83,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
         }
 
         return [
+            'id' => 'ID',
             'name_lv' => 'Product Name LV',
             'name_en' => 'Product Name EN',
             'description_lv' => 'Description LV',
@@ -169,6 +171,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                     $tempPath = $temporaryUploadedFile->getRealPath();
 
                     try {
+                        $mappings = $this->mapColumns();
                         $spreadsheet = IOFactory::load($tempPath);
                         $sheet = $spreadsheet->getSheet(0);
                         $headerRow = $sheet->rangeToArray(
@@ -184,10 +187,18 @@ class ManageCollectionImports extends BaseManageRelatedRecords
 
                         // Now populate your repeater / form state
                         $set('excel_columns', $columns);
-                        $set('column_mapping', collect($columns)->map(function ($col) {
+                        $set('column_mapping', collect($columns)->map(function ($col) use ($mappings) {
+                            $preMap = null;
+
+                            if (in_array($col, $mappings)) {
+                                $preMap = array_search($col, $mappings, true);
+                            } else {
+                                $preMap = str_contains($col, 'image') ? 'image' : null;
+                            }
+                            
                             return [
                                 'column_name' => $col,
-                                'mapped_to' => str_contains($col, 'image') ? 'image' : null,
+                                'mapped_to' => $preMap,
                             ];
                         })->toArray());
                     } catch (\Throwable $e) {
@@ -241,10 +252,15 @@ class ManageCollectionImports extends BaseManageRelatedRecords
 
                         return redirect(request()->header('Referer'));
                     })
-                    ->visible(fn (Import $record) => $record->status == Import::STATUS_ERROR)
+                    ->visible(fn (Import $record) => $record->status == Import::STATUS_ERROR),
+                Tables\Actions\DeleteAction::make('Delete')
             ])
             ->headerActions([
-                Tables\Actions\Action::make('New excel import')
+                Tables\Actions\Action::make('Export')
+                    ->action(function (Action $action) {
+                        return ExportLunarProducts::exportForCollection($this->record);
+                    }),
+                Tables\Actions\Action::make('Import')
                     ->steps($this->steps())
                     ->extraAttributes(['data-submit-scope' => 'all'])
                     ->action(function (array $data, Form $form, Action $action) {

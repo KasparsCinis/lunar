@@ -132,48 +132,80 @@ class ImportExcelJob implements ShouldQueue
                     }
                 }
 
-                // Create the product
-                $product = Product::create([
-                    'status' => 'published',
-                    'product_type_id' => ProductType::first()->id,
-                    'attribute_data' => collect([
-                        'name' => new TranslatedText([
-                            'en' => $data['name_en'] ?? '',
-                            'lv' => $data['name_lv'] ?? '',
+                if (isset($data['id'])) {
+                    /** @var $product Product */
+                    $product = Product::findOrFail($data['id']);
+
+                    if (isset($data['name_en']) || $data['name_lv'] || $data['description_en'] || $data['description_lv']) {
+                        $product->attribute_data = collect([
+                            'name' => new TranslatedText([
+                                'en' => $data['name_en'] ?? '',
+                                'lv' => $data['name_lv'] ?? '',
+                            ]),
+                            'description' => new TranslatedText([
+                                'en' => $data['description_en'] ?? '',
+                                'lv' => $data['description_lv'] ?? '',
+                            ]),
+                        ]);
+                        $product->saveOrFail();
+                    }
+
+                    if (isset($data['sku'])) {
+                        $product->variant->sku = $data['sku'];
+                        $product->saveOrFail();
+                    }
+                    if (isset($data['price'])) {
+                        $price = $product->variant->prices()->first();
+
+                        $price->price = $this->parsePrice($data['price'] ?? 0);
+                        $price->saveOrFail();
+                    }
+                } else {
+                    $product = Product::create([
+                        'status' => 'published',
+                        'product_type_id' => ProductType::first()->id,
+                        'attribute_data' => collect([
+                            'name' => new TranslatedText([
+                                'en' => $data['name_en'] ?? '',
+                                'lv' => $data['name_lv'] ?? '',
+                            ]),
+                            'description' => new TranslatedText([
+                                'en' => $data['description_en'] ?? '',
+                                'lv' => $data['description_lv'] ?? '',
+                            ]),
                         ]),
-                        'description' => new TranslatedText([
-                            'en' => $data['description_en'] ?? '',
-                            'lv' => $data['description_lv'] ?? '',
-                        ]),
-                    ]),
-                ]);
+                    ]);
+
+                    $product->collections()->attach($this->import->collection_id);
+
+                    $variant = $product->variants()->create([
+                        'sku' => $data['sku'] ?? 'SKU-' . uniqid(), //@todo
+                        'tax_class_id' => 1, //@todo
+                    ]);
+
+                    $variant->prices()->create([
+                        'currency_id' => $currency->id,
+                        'price' => $this->parsePrice($data['price'] ?? 0),
+                        'min_quantity' => 1
+                    ]);
+                }
 
                 foreach ($mapping as $key => $columnType) {
                     if (Str::contains($columnType, 'filter-')
                         && $data[$columnType]
                         && $id = explode('-', $columnType)[1] ?? null
                     ) {
-                        FilterProduct::create([
-                            'filter_id' => $id,
-                            'product_id' => $product->id,
-                            'value' => $data[$columnType]
-                        ]);
+                        FilterProduct::updateOrCreate(
+                            [
+                                'filter_id' => $id,
+                                'product_id' => $product->id,
+                            ],
+                            [
+                                'value' => $data[$columnType],
+                            ]
+                        );
                     }
                 }
-
-                $product->collections()->attach($this->import->collection_id);
-
-                // Create variant
-                $variant = $product->variants()->create([
-                    'sku' => $data['sku'] ?? 'SKU-' . uniqid(), //@todo
-                    'tax_class_id' => 1, //@todo
-                ]);
-
-                $variant->prices()->create([
-                    'currency_id' => $currency->id,
-                    'price' => $this->parsePrice($data['price'] ?? 0),
-                    'min_quantity' => 1
-                ]);
 
                 // Attach images if zip provided
                 if (!empty($data['images'])) {
