@@ -30,4 +30,9 @@ class FilterProduct extends BaseModel
     {
         return $this->hasOne(Product::modelClass(), 'id', 'product_id');
     }
+
+    public function filter(): HasOne
+    {
+        return $this->hasOne(Filter::modelClass(), 'id', 'filter_id');
+    }
 }

@@ -29,11 +29,12 @@ use Lunar\Database\Factories\OrderFactory;
  * @property ?string $customer_reference
  * @property int $sub_total
  * @property int $discount_total
+ * @property int $shipping_total
+ * @property int $tax_total
+ * @property int $total
  * @property array $discount_breakdown
  * @property array $shipping_breakdown
  * @property array $tax_breakdown
- * @property int $tax_total
- * @property int $total
  * @property ?string $notes
  * @property string $currency_code
  * @property ?string $compare_currency_code
