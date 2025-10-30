@@ -103,8 +103,6 @@ final class CreateOrder extends AbstractAction
                     'postcode' => $cartShippingData->postcode,
                     'contact_email' => $cartShippingData->contact_email,
                     'contact_phone' => $cartShippingData->contact_phone,
-                ], [
-                    'shipping_default' => 1
                 ]);
                 $billingAddress = Address::firstOrCreate([
                     'customer_id' => $customer->id,
@@ -117,9 +115,15 @@ final class CreateOrder extends AbstractAction
                     'postcode' => $cartBillingData->postcode,
                     'contact_email' => $cartBillingData->contact_email,
                     'contact_phone' => $cartBillingData->contact_phone,
-                ], [
-                    'billing_default' => 1
                 ]);
+
+                $shippingAddress->shipping_default = 1;
+                $shippingAddress->saveOrFail();
+
+                if ($billingAddress->id != $shippingAddress->id) {
+                    $billingAddress->billing_default = 1;
+                    $billingAddress->saveOrFail();
+                }
             }
 
             return $order;
