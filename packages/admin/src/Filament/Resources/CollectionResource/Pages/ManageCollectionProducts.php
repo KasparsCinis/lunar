@@ -117,6 +117,23 @@ class ManageCollectionProducts extends BaseManageRelatedRecords
 
                     $product->searchable();
                 }),
+            \Filament\Tables\Actions\Action::make('deleteProducts')
+                ->label('Delete all Products')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Are you sure?')
+                ->modalDescription('This will permanently delete all associated products and cannot be undone!')
+                ->action(function () {
+                    $this->record->products()->update(['deleted_at' => now()]);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('Products deleted successfully!')
+                        ->success()
+                        ->send();
+                })
+                ->after(function ($livewire) {
+                    $livewire->resetTable();
+                }),
         ])->reorderable('position');
     }
 }
