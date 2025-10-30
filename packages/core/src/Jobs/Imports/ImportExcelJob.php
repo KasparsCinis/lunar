@@ -132,9 +132,8 @@ class ImportExcelJob implements ShouldQueue
                     }
                 }
 
-                if (isset($data['id'])) {
+                if (isset($data['id']) && $product = Product::find($data['id'])) {
                     /** @var $product Product */
-                    $product = Product::findOrFail($data['id']);
 
                     if (isset($data['name_en']) || $data['name_lv'] || $data['description_en'] || $data['description_lv']) {
                         $product->attribute_data = collect([

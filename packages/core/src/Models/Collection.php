@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Kalnoy\Nestedset\NodeTrait;
 use Kalnoy\Nestedset\QueryBuilder;
 use Lunar\Base\BaseModel;
@@ -46,6 +47,7 @@ class Collection extends BaseModel implements Contracts\Collection, HasThumbnail
         HasTranslations,
         HasUrls,
         NodeTrait,
+        SoftDeletes,
         Searchable {
             NodeTrait::usesSoftDelete insteadof Searchable;
         }
