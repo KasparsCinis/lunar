@@ -199,4 +199,23 @@ class Collection extends BaseModel implements Contracts\Collection, HasThumbnail
     {
         return $this->thumbnail?->getUrl('small') ?? '';
     }
+
+    public function isInActivePath(): bool
+    {
+        $activeSlug = request()->route('slug');
+
+        // If THIS category is active
+        if ($this->defaultUrl->slug === $activeSlug) {
+            return true;
+        }
+
+        // Recursively check all children
+        foreach ($this->children as $child) {
+            if ($child->isInActivePath()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
