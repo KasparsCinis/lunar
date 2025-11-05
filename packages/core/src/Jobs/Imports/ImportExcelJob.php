@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Lunar\Facades\DB;
 use Lunar\FieldTypes\TranslatedText;
+use Lunar\Models\Collection;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
 use Lunar\Models\Filters\Filter;
@@ -90,6 +91,10 @@ class ImportExcelJob implements ShouldQueue
             $spreadsheet = IOFactory::load($excelPath);
             $sheet = $spreadsheet->getActiveSheet();
             $mapping = $this->import->column_mapping;
+
+            $collection = Collection::findOrFail($this->import->collection_id);
+            $prefix = config('lunar.database.table_prefix');
+            $nextPosition = ($collection->products()->max( "{$prefix}collection_product.position") ?? 1) + 1;
 
             /** @var $rowModel Row */
             foreach ($sheet->getRowIterator() as $rowIndex => $rowModel) {
@@ -175,7 +180,9 @@ class ImportExcelJob implements ShouldQueue
                         ]),
                     ]);
 
-                    $product->collections()->attach($this->import->collection_id);
+                    $product->collections()->attach($this->import->collection_id, [
+                        'position' => $nextPosition
+                    ]);
 
                     $variant = $product->variants()->create([
                         'sku' => $data['sku'] ?? 'SKU-' . uniqid(), //@todo
@@ -187,6 +194,8 @@ class ImportExcelJob implements ShouldQueue
                         'price' => $this->parsePrice($data['price'] ?? 0),
                         'min_quantity' => 1
                     ]);
+
+                    $nextPosition++;
                 }
 
                 foreach ($mapping as $key => $columnType) {
