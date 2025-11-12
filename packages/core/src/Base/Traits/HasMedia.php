@@ -38,6 +38,15 @@ trait HasMedia
             ->where('custom_properties->primary', true);
     }
 
+    /**
+     * Relationship for logo image.
+     */
+    public function logo(): MorphOne
+    {
+        return $this->morphOne(config('media-library.media_model'), 'model')
+            ->where('custom_properties->name', 'logo');
+    }
+
     public function registerMediaCollections(): void
     {
         $mediaDefinition = app($this->getDefinitionClass());
