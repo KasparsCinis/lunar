@@ -18,6 +18,7 @@ use Lunar\Admin\Actions\Products\MapVariantsToProductOptions;
 use Lunar\Admin\Events\ProductVariantOptionsUpdated;
 use Lunar\Admin\Filament\Resources\ProductVariantResource;
 use Lunar\Facades\DB;
+use Lunar\Helpers\CurrencyHelper;
 use Lunar\Models\Contracts\ProductOption as ProductOptionContract;
 use Lunar\Models\Contracts\ProductOptionValue as ProductOptionValueContract;
 use Lunar\Models\Contracts\ProductVariant as ProductVariantContract;
@@ -417,7 +418,7 @@ class ProductOptionsWidget extends BaseWidget implements HasActions, HasForms
                     $variant->stock = $variantData['stock'];
                     $variant->save();
 
-                    $basePrice->price = (int) bcmul($variantData['price'], $basePrice->currency->factor);
+                    $basePrice->price = (int) bcmul(CurrencyHelper::cleanup($variantData['price']), $basePrice->currency->factor);
                     $basePrice->save();
 
                     $optionsValues = $this->mapOptionValuesToIds($variantData['values']);

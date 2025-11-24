@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
 use Lunar\Base\DiscountTypeInterface;
 use Lunar\Base\ValueObjects\Cart\DiscountBreakdown;
+use Lunar\Helpers\CurrencyHelper;
 use Lunar\Models\Cart;
 use Lunar\Models\Contracts\Cart as CartContract;
 use Lunar\Models\Contracts\Discount as DiscountContract;
@@ -77,7 +78,7 @@ abstract class AbstractDiscountType implements DiscountTypeInterface
         $validCoupon = $cartCoupon ? ($cartCoupon === $conditionCoupon) : blank($conditionCoupon);
 
         $minSpend = (int) ($data['min_prices'][$cart->currency->code] ?? 0) / (int) $cart->currency->factor;
-        $minSpend = (int) bcmul($minSpend, $cart->currency->factor);
+        $minSpend = (int) bcmul(CurrencyHelper::cleanup($minSpend), $cart->currency->factor);
 
         $lines = $this->getEligibleLines($cart);
         $validMinSpend = $minSpend ? $minSpend < $lines->sum('subTotal.value') : true;

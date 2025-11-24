@@ -27,6 +27,7 @@ use Lunar\Admin\Support\Forms\Components\Tags as TagsComponent;
 use Lunar\Admin\Support\Infolists\Components\Livewire;
 use Lunar\Admin\Support\Infolists\Components\Tags;
 use Lunar\Admin\Support\Pages\BaseViewRecord;
+use Lunar\Helpers\CurrencyHelper;
 use Lunar\Models\Tag;
 use Lunar\Models\Transaction;
 
@@ -403,7 +404,7 @@ class ManageOrder extends BaseViewRecord
             ->action(function ($data, $record, Actions\Action $action) {
                 $transaction = Transaction::findOrFail($data['transaction']);
 
-                $response = $transaction->refund(bcmul($data['amount'], $record->currency->factor), $data['notes']);
+                $response = $transaction->refund(bcmul(CurrencyHelper::cleanup($data['amount']), $record->currency->factor), $data['notes']);
 
                 if (! $response->success) {
                     $action->failureNotification(
@@ -508,7 +509,7 @@ class ManageOrder extends BaseViewRecord
             ->action(function ($data, $record, Actions\Action $action) {
                 $transaction = Transaction::findOrFail($data['transaction']);
 
-                $response = $transaction->capture(bcmul($data['amount'], $record->currency->factor));
+                $response = $transaction->capture(bcmul(CurrencyHelper::cleanup($data['amount']), $record->currency->factor));
 
                 if (! $response->success) {
                     $action->failureNotification(

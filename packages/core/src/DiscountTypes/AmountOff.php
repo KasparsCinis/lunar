@@ -5,6 +5,7 @@ namespace Lunar\DiscountTypes;
 use Lunar\Base\ValueObjects\Cart\DiscountBreakdown;
 use Lunar\Base\ValueObjects\Cart\DiscountBreakdownLine;
 use Lunar\DataTypes\Price;
+use Lunar\Helpers\CurrencyHelper;
 use Lunar\Models\Cart;
 use Lunar\Models\Collection;
 use Lunar\Models\Contracts\Cart as CartContract;
@@ -52,7 +53,7 @@ class AmountOff extends AbstractDiscountType
 
         $decimal = ($values[$currency->code] ?? 0) / $currency->factor;
 
-        $value = (int) bcmul($decimal, $currency->factor);
+        $value = (int) bcmul(CurrencyHelper::cleanup($decimal), $currency->factor);
 
         $lines = $this->getEligibleLines($cart);
 

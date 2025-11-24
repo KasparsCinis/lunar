@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Lunar\Admin\Filament\Resources\ProductResource;
 use Lunar\Admin\Support\Pages\BaseListRecords;
 use Lunar\Facades\DB;
+use Lunar\Helpers\CurrencyHelper;
 use Lunar\Models\Attribute;
 use Lunar\Models\Currency;
 use Lunar\Models\Product;
@@ -73,7 +74,7 @@ class ListProducts extends BaseListRecords
         $variant->prices()->create([
             'min_quantity' => 1,
             'currency_id' => $currency->id,
-            'price' => (int) bcmul($data['base_price'], $currency->factor),
+            'price' => (int) bcmul(CurrencyHelper::cleanup($data['base_price']), $currency->factor),
         ]);
         DB::commit();
 

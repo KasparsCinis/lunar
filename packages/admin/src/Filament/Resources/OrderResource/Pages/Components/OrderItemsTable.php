@@ -17,6 +17,7 @@ use Lunar\Admin\Filament\Resources\ProductResource\Pages\EditProduct;
 use Lunar\Admin\Livewire\Components\TableComponent;
 use Lunar\Admin\Support\Concerns\CallsHooks;
 use Lunar\Admin\Support\Tables\Components\KeyValue;
+use Lunar\Helpers\CurrencyHelper;
 use Lunar\Models\OrderLine;
 use Lunar\Models\ProductVariant;
 use Lunar\Models\Transaction;
@@ -179,7 +180,7 @@ class OrderItemsTable extends TableComponent
             ->action(function ($data, BulkAction $action) {
                 $transaction = Transaction::findOrFail($data['transaction']);
 
-                $response = $transaction->refund(bcmul($data['amount'], $this->record->currency->factor), $data['notes']);
+                $response = $transaction->refund(bcmul(CurrencyHelper::cleanup($data['amount']), $this->record->currency->factor), $data['notes']);
 
                 if (! $response->success) {
                     $action->failureNotification(
