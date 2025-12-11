@@ -140,7 +140,11 @@ class ImportExcelJob implements ShouldQueue
                 if (isset($data['id']) && $product = Product::find($data['id'])) {
                     /** @var $product Product */
 
-                    if (isset($data['name_en']) || $data['name_lv'] || $data['description_en'] || $data['description_lv']) {
+                    if (isset($data['name_en'])
+                        || isset($data['name_lv'])
+                        || isset($data['description_en'])
+                        || isset($data['description_lv'])
+                    ) {
                         $product->attribute_data = collect([
                             'name' => new TranslatedText([
                                 'en' => $data['name_en'] ?? '',
@@ -156,7 +160,7 @@ class ImportExcelJob implements ShouldQueue
 
                     if (isset($data['sku'])) {
                         $product->variant->sku = $data['sku'];
-                        $product->saveOrFail();
+                        $product->variant->saveOrFail();
                     }
                     if (isset($data['price'])) {
                         $price = $product->variant->prices()->first();
