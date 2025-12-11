@@ -21,10 +21,10 @@ class ExportLunarProducts
         $sheet->setCellValue('D1', 'Description LV');
         $sheet->setCellValue('E1', 'Description EN');
         $sheet->setCellValue('F1', 'SKU');
-        $sheet->setCellValue('F1', 'Stock');
-        $sheet->setCellValue('G1', 'Price');
+        $sheet->setCellValue('G1', 'Stock');
+        $sheet->setCellValue('H1', 'Price');
 
-        $column = "H";
+        $column = "I";
 
         /** Filter headers */
         foreach ($collection->filtersAndParentFilters() as $filter) {
@@ -48,7 +48,7 @@ class ExportLunarProducts
                     $sheet->setCellValue('G' . $row, $product->prices()->first()?->priceExTax()->value / 100);
 
                     /** Export all filters */
-                    $column = "H";
+                    $column = "I";
 
                     /** Filter headers */
                     foreach ($collection->filtersAndParentFilters() as $filter) {
