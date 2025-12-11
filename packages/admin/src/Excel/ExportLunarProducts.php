@@ -21,6 +21,7 @@ class ExportLunarProducts
         $sheet->setCellValue('D1', 'Description LV');
         $sheet->setCellValue('E1', 'Description EN');
         $sheet->setCellValue('F1', 'SKU');
+        $sheet->setCellValue('F1', 'Stock');
         $sheet->setCellValue('G1', 'Price');
 
         $column = "H";
@@ -43,6 +44,7 @@ class ExportLunarProducts
                     $sheet->setCellValue('D' . $row, $product->translateAttribute('description', 'lv'));
                     $sheet->setCellValue('E' . $row, $product->translateAttribute('description', 'en'));
                     $sheet->setCellValue('F' . $row, $product->variant?->sku);
+                    $sheet->setCellValue('F' . $row, $product->variant?->stock);
                     $sheet->setCellValue('G' . $row, $product->prices()->first()?->priceExTax()->value / 100);
 
                     /** Export all filters */
@@ -64,7 +66,7 @@ class ExportLunarProducts
                     $row++;
                 }
             });
-        
+
         // (Optional) Auto-size columns
         foreach (range('A', $sheet->getHighestDataColumn()) as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
