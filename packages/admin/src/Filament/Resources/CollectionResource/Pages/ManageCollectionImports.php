@@ -90,6 +90,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             'description_en' => 'Description EN',
             'sku' => 'SKU',
             'price' => 'Price',
+            'stock' => 'Stock',
             'image' => 'Image'
         ] + $filters;
     }
@@ -195,7 +196,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                             } else {
                                 $preMap = str_contains($col, 'image') ? 'image' : null;
                             }
-                            
+
                             return [
                                 'column_name' => $col,
                                 'mapped_to' => $preMap,

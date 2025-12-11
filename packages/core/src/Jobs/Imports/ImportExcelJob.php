@@ -168,6 +168,10 @@ class ImportExcelJob implements ShouldQueue
                         $price->price = $this->parsePrice($data['price'] ?? 0);
                         $price->saveOrFail();
                     }
+                    if (isset($data['stock'])) {
+                        $product->variant->stock = $data['stock'];
+                        $product->variant->saveOrFail();
+                    }
                 } else {
                     $product = Product::create([
                         'status' => 'published',
@@ -189,7 +193,8 @@ class ImportExcelJob implements ShouldQueue
                     ]);
 
                     $variant = $product->variants()->create([
-                        'sku' => $data['sku'] ?? 'SKU-' . uniqid(), //@todo
+                        'sku' => $data['sku'] ?? 'SKU-' . uniqid(),
+                        'stock' => $data['stock'] ?? 0,
                         'tax_class_id' => 1, //@todo
                     ]);
 
