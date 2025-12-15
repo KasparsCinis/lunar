@@ -33,6 +33,11 @@ class EditProduct extends BaseEditRecord
     protected function getDefaultHeaderActions(): array
     {
         return [
+            Actions\Action::make('view_on_store')
+                ->label('View in shop')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->url(fn () => $this->getProductUrl())
+                ->openUrlInNewTab(),
             Actions\EditAction::make('update_status')
                 ->label(
                     __('lunarpanel::product.actions.edit_status.label')
@@ -57,6 +62,13 @@ class EditProduct extends BaseEditRecord
                 ->databaseTransaction(),
             Actions\RestoreAction::make(),
         ];
+    }
+
+    protected function getProductUrl(): string
+    {
+        $product = $this->record;
+
+        return $product->defaultUrl ? route('product.view', ['slug' => $product->defaultUrl->slug, 'locale' => 'lv']) : '#';
     }
 
     public function getRelationManagers(): array
