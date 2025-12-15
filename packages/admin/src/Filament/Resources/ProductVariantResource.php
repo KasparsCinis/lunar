@@ -71,6 +71,7 @@ class ProductVariantResource extends BaseResource
     {
         return $form
             ->schema([
+                Forms\Components\RichEditor::make('description'),
                 static::getAttributeDataFormComponent(),
             ])
             ->columns(1);

@@ -48,6 +48,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property int $stock
  * @property int $backorder
  * @property string $purchasable
+ * @property string $description
  * @property ?\Illuminate\Support\Carbon $created_at
  * @property ?\Illuminate\Support\Carbon $updated_at
  * @property ?\Illuminate\Support\Carbon $deleted_at
@@ -75,7 +76,7 @@ class ProductVariant extends BaseModel implements Contracts\ProductVariant, HasT
      */
     protected $casts = [
         'requires_shipping' => 'bool',
-        'attribute_data' => AsAttributeData::class,
+        'attribute_data' => AsAttributeData::class
     ];
 
     /**
@@ -157,7 +158,7 @@ class ProductVariant extends BaseModel implements Contracts\ProductVariant, HasT
      */
     public function getDescription(): string
     {
-        return $this->product->translateAttribute('name');
+        return $this->description ? $this->description : $this->product->translateAttribute('name');
     }
 
     /**
