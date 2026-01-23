@@ -12,6 +12,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property integer  $collection_id
  * @property array    $column_mapping
  * @property integer  $status
+ * @property integer  $type
  * @property string   $progress
  * @property string   $created_at
  * @property string   $updated_at
@@ -36,6 +37,7 @@ class Import extends BaseModel implements HasMedia
         'column_mapping',
         'status',
         'progress',
+        'type'
     ];
 
     protected $casts = [
