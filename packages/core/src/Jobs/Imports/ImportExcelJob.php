@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Lunar\Facades\DB;
 use Lunar\FieldTypes\TranslatedText;
+use Lunar\Models\Brand;
 use Lunar\Models\Collection;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
@@ -205,6 +206,15 @@ class ImportExcelJob implements ShouldQueue
                     ]);
 
                     $nextPosition++;
+                }
+
+                if (isset($data['brand']) && $data['brand']) {
+                    $brand = Brand::firstOrCreate([
+                        'name' => $data['brand'],
+                    ]);
+
+                    $product->brand_id = $brand->id;
+                    $product->saveOrFail();
                 }
 
                 foreach ($mapping as $key => $columnType) {

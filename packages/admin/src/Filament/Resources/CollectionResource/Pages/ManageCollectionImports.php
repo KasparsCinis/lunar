@@ -91,7 +91,8 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             'sku' => 'SKU',
             'price' => 'Price',
             'stock' => 'Stock',
-            'image' => 'Image'
+            'image' => 'Image',
+            'brand' => 'Brand'
         ] + $filters;
     }
 

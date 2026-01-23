@@ -23,8 +23,9 @@ class ExportLunarProducts
         $sheet->setCellValue('F1', 'SKU');
         $sheet->setCellValue('G1', 'Stock');
         $sheet->setCellValue('H1', 'Price');
+        $sheet->setCellValue('I1', 'Brand');
 
-        $column = "I";
+        $column = "J";
 
         /** Filter headers */
         foreach ($collection->filtersAndParentFilters() as $filter) {
@@ -44,11 +45,12 @@ class ExportLunarProducts
                     $sheet->setCellValue('D' . $row, $product->translateAttribute('description', 'lv'));
                     $sheet->setCellValue('E' . $row, $product->translateAttribute('description', 'en'));
                     $sheet->setCellValue('F' . $row, $product->variant?->sku);
-                    $sheet->setCellValue('F' . $row, $product->variant?->stock);
-                    $sheet->setCellValue('G' . $row, $product->prices()->first()?->priceExTax()->value / 100);
+                    $sheet->setCellValue('G' . $row, $product->variant?->stock);
+                    $sheet->setCellValue('H' . $row, $product->prices()->first()?->priceExTax()->value / 100);
+                    $sheet->setCellValue('I' . $row, $product->brand?->name);
 
                     /** Export all filters */
-                    $column = "I";
+                    $column = "J";
 
                     /** Filter headers */
                     foreach ($collection->filtersAndParentFilters() as $filter) {
