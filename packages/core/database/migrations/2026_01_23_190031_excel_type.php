@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table($this->prefix.'product_variants', function (Blueprint $table) {
+        Schema::table($this->prefix.'imports', function (Blueprint $table) {
             $table->integer('type')->nullable();
         });
     }
