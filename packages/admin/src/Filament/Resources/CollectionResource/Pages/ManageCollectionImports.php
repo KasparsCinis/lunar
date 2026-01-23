@@ -293,7 +293,8 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                             'collection_id' => $this->record->id,
                             'status' => Import::STATUS_PENDING,
                             'column_mapping' => $mappedColumns,
-                            'progress' => 'Preparing to import'
+                            'progress' => 'Preparing to import',
+                            'type' => Import::TYPE_COLLECTION
                         ]);
 
                         $form->model($record)->saveRelationships();

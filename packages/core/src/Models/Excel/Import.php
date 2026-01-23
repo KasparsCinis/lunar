@@ -21,11 +21,14 @@ use Spatie\MediaLibrary\InteractsWithMedia;
 class Import extends BaseModel implements HasMedia
 {
     use InteractsWithMedia;
-    
+
     const STATUS_PENDING = 1;
     const STATUS_IN_PROGRESS = 2;
     const STATUS_ERROR = 3;
     const STATUS_SUCCESS = 4;
+
+    const TYPE_COLLECTION = 1;
+    const TYPE_INVENTORY = 2;
 
     protected $table = 'imports';
     protected $fillable = [
