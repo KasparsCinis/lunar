@@ -37,10 +37,15 @@ class Import extends BaseModel implements HasMedia
         'column_mapping',
         'status',
         'progress',
-        'type'
+        'type',
     ];
-
     protected $casts = [
         'column_mapping' => 'array',
+    ];
+    public static $statuses = [
+        self::STATUS_PENDING => 'Waiting to start',
+        self::STATUS_IN_PROGRESS => 'Processing',
+        self::STATUS_ERROR => 'Failed',
+        self::STATUS_SUCCESS => 'Completed',
     ];
 }

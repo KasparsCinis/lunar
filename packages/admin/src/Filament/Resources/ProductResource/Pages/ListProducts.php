@@ -20,7 +20,7 @@ use Lunar\Admin\Filament\Resources\ProductResource;
 use Lunar\Admin\Support\Pages\BaseListRecords;
 use Lunar\Facades\DB;
 use Lunar\Helpers\CurrencyHelper;
-use Lunar\Jobs\Imports\ImportExcelJob;
+use Lunar\Jobs\Imports\ImportStockJob;
 use Lunar\Models\Attribute;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
@@ -73,7 +73,6 @@ class ListProducts extends BaseListRecords
                                             )[1];
 
                                             $columns = array_values($headerRow);
-                                            $columns = array_filter($columns);
 
                                             $set('excel_headers', $columns);
                                         } catch (\Throwable $e) {
@@ -86,20 +85,14 @@ class ListProducts extends BaseListRecords
                                 Select::make('mapping.sku')
                                     ->label('SKU')
                                     ->options(fn (callable $get) =>
-                                        array_combine(
-                                            $get('excel_headers') ?? [],
-                                            $get('excel_headers') ?? []
-                                        )
+                                        $get('excel_headers') ?? []
                                     )
                                     ->required(),
 
                                 Select::make('mapping.stock')
                                     ->label('Stock')
                                     ->options(fn (callable $get) =>
-                                        array_combine(
-                                            $get('excel_headers') ?? [],
-                                            $get('excel_headers') ?? []
-                                        )
+                                        $get('excel_headers') ?? []
                                     )
                                     ->required(),
                             ]),
@@ -116,10 +109,10 @@ class ListProducts extends BaseListRecords
 
                     $form->model($record)->saveRelationships();
 
-                    /*ImportExcelJob::dispatch($record->id)
-                        ->delay(now()->addSeconds(5));*/
+                    ImportStockJob::dispatch($record->id)
+                        ->delay(now()->addSeconds(5));
 
-                    //$this->success('Excel import started');
+                    return $this->redirect("/admin/imports/{$record->id}/edit");
                 }),
             Actions\CreateAction::make()->createAnother(false)->form(
                     static::createActionFormInputs()
