@@ -24,8 +24,9 @@ class ExportLunarProducts
         $sheet->setCellValue('G1', 'Stock');
         $sheet->setCellValue('H1', 'Price');
         $sheet->setCellValue('I1', 'Brand');
+        $sheet->setCellValue('J1', 'Minimum order amount');
 
-        $column = "J";
+        $column = "K";
 
         /** Filter headers */
         foreach ($collection->filtersAndParentFilters() as $filter) {
@@ -48,9 +49,10 @@ class ExportLunarProducts
                     $sheet->setCellValue('G' . $row, $product->variant?->stock);
                     $sheet->setCellValue('H' . $row, $product->prices()->first()?->priceExTax()->value / 100);
                     $sheet->setCellValue('I' . $row, $product->brand?->name);
+                    $sheet->setCellValue('J' . $row, $product->variant?->min_quantity);
 
                     /** Export all filters */
-                    $column = "J";
+                    $column = "K";
 
                     /** Filter headers */
                     foreach ($collection->filtersAndParentFilters() as $filter) {
