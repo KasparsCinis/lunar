@@ -92,7 +92,8 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             'price' => 'Price',
             'stock' => 'Stock',
             'image' => 'Image',
-            'brand' => 'Brand'
+            'brand' => 'Brand',
+            'min_stock' => 'Minimum order amount'
         ] + $filters;
     }
 

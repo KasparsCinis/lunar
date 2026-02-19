@@ -16,7 +16,6 @@ use Lunar\Models\Brand;
 use Lunar\Models\Collection;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
-use Lunar\Models\Filters\Filter;
 use Lunar\Models\Filters\FilterProduct;
 use Lunar\Models\Product;
 use Lunar\Models\ProductType;
@@ -215,6 +214,11 @@ class ImportExcelJob implements ShouldQueue
 
                     $product->brand_id = $brand->id;
                     $product->saveOrFail();
+                }
+
+                if (isset($data['min_stock']) && $data['min_stock']) {
+                    $product->variant->min_quantity = $data['min_stock'];
+                    $product->variant->saveOrFail();
                 }
 
                 foreach ($mapping as $key => $columnType) {
