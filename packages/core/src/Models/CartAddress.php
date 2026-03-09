@@ -24,9 +24,11 @@ use Lunar\DataTypes\ShippingOption;
  * @property ?string $last_name
  * @property ?string $company_name
  * @property ?string $tax_identifier
+ * @property ?string $tax_identifier_vat
  * @property ?string $line_one
  * @property ?string $line_two
  * @property ?string $line_three
+ * @property ?string $company_address
  * @property ?string $city
  * @property ?string $state
  * @property ?string $postcode
@@ -105,9 +107,11 @@ class CartAddress extends BaseModel implements Addressable, Contracts\CartAddres
         'last_name',
         'company_name',
         'tax_identifier',
+        'tax_identifier_vat',
         'line_one',
         'line_two',
         'line_three',
+        'company_address',
         'city',
         'state',
         'postcode',
