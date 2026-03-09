@@ -17,6 +17,7 @@ class AddAddress extends AbstractAction
         'last_name',
         'company_name',
         'tax_identifier',
+        'tax_identifier_vat',
         'line_one',
         'line_two',
         'line_three',
@@ -27,6 +28,7 @@ class AddAddress extends AbstractAction
         'contact_email',
         'contact_phone',
         'meta',
+        'company_address',
     ];
 
     /**
