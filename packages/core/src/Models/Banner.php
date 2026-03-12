@@ -9,6 +9,22 @@ use Lunar\Models\Contracts\Banner as BannerContract;
 use Spatie\MediaLibrary\HasMedia as SpatieHasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $location
+ * @property int|null $collection_id
+ * @property string $media_type
+ * @property string|null $media_path
+ * @property string|null $cta_label
+ * @property string|null $cta_url
+ * @property bool $is_active
+ * @property int $position
+ * @property \Illuminate\Support\Carbon|null $starts_at
+ * @property \Illuminate\Support\Carbon|null $ends_at
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ */
 class Banner extends BaseModel implements BannerContract, SpatieHasMedia
 {
     use InteractsWithMedia;

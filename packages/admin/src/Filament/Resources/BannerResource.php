@@ -28,6 +28,8 @@ class BannerResource extends BaseResource
 
     protected static SubNavigationPosition $subNavigationPosition = SubNavigationPosition::End;
 
+    protected static ?string $navigationIcon = 'heroicon-o-rectangle-group';
+
     public static function getLabel(): string
     {
         return 'Banner';
