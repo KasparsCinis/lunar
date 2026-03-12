@@ -51,6 +51,7 @@ class LunarPanelManager
         Resources\ActivityResource::class,
         Resources\AttributeGroupResource::class,
         Resources\BrandResource::class,
+        Resources\BannerResource::class,
         Resources\ChannelResource::class,
         Resources\CollectionGroupResource::class,
         Resources\CollectionResource::class,
