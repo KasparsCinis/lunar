@@ -28,7 +28,7 @@ use Lunar\Database\Factories\AddressFactory;
  * @property ?string $postcode
  * @property int $country_id
  * @property ?string $delivery_instructions
- * @property ?string $contact_mail
+ * @property ?string $contact_email
  * @property ?string $contact_phone
  * @property ?\Illuminate\Support\Carbon $last_used_at
  * @property array $meta
