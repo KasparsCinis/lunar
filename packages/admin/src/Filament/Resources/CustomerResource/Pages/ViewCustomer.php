@@ -3,6 +3,7 @@
 namespace Lunar\Admin\Filament\Resources\CustomerResource\Pages;
 
 use Filament\Actions;
+use Filament\Actions\ForceDeleteAction;
 use Lunar\Admin\Filament\Resources\CustomerResource;
 use Lunar\Admin\Support\Pages\BaseViewRecord;
 
@@ -24,6 +25,9 @@ class ViewCustomer extends BaseViewRecord
     {
         return [
             Actions\EditAction::make(),
+            Actions\DeleteAction::make(),
+            ForceDeleteAction::make()->databaseTransaction(),
+            Actions\RestoreAction::make(),
         ];
     }
 

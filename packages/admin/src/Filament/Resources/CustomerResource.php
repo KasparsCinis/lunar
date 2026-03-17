@@ -205,6 +205,7 @@ class CustomerResource extends BaseResource
                     }),
             ])
             ->filters([
+                Tables\Filters\TrashedFilter::make(),
                 Tables\Filters\SelectFilter::make('customer_group')
                     ->label(__('lunarpanel::customergroup.label'))
                     ->relationship(
@@ -223,6 +224,8 @@ class CustomerResource extends BaseResource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\ForceDeleteBulkAction::make(),
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])

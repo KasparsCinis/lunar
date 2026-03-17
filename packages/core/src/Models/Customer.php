@@ -4,6 +4,7 @@ namespace Lunar\Models;
 
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
@@ -29,12 +30,14 @@ use Lunar\Database\Factories\CustomerFactory;
  * @property ?array $meta
  * @property ?\Illuminate\Support\Carbon $created_at
  * @property ?\Illuminate\Support\Carbon $updated_at
+ * @property ?\Illuminate\Support\Carbon $deleted_at
  */
 class Customer extends BaseModel implements Contracts\Customer
 {
     use HasAttributes;
     use HasFactory;
     use HasMacros;
+    use SoftDeletes;
     use HasPersonalDetails;
     use HasTranslations;
     use LogsActivity;
@@ -101,6 +104,11 @@ class Customer extends BaseModel implements Contracts\Customer
     public function orders(): HasMany
     {
         return $this->hasMany(Order::modelClass());
+    }
+
+    public function carts(): HasMany
+    {
+        return $this->hasMany(Cart::modelClass());
     }
 
     public function mappedAttributes(): MorphToMany
