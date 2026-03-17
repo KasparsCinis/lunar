@@ -79,10 +79,9 @@ class CustomerResource extends BaseResource
     {
         return [
             Forms\Components\Group::make()->schema([
-                static::getTitleFormComponent()->columnSpan(1),
                 static::getFirstNameFormComponent()->columnSpan(2),
                 static::getLastNameFormComponent()->columnSpan(2),
-            ])->columns(5),
+            ])->columns(4),
             static::getCompanyNameFormComponent(),
             Forms\Components\Group::make()->schema([
                 static::getAccountRefFormComponent(),
@@ -96,15 +95,6 @@ class CustomerResource extends BaseResource
         return [
             static::getCustomerGroupsFormComponent(),
         ];
-    }
-
-    protected static function getTitleFormComponent(): Component
-    {
-        return Forms\Components\TextInput::make('title')
-            ->label(__('lunarpanel::customer.form.title.label'))
-            ->required()
-            ->maxLength(255)
-            ->autofocus();
     }
 
     protected static function getAttributeDataFormComponent(): Component
