@@ -72,15 +72,9 @@ class BannerResource extends BaseResource
                 ->options([
                     'homepage' => 'Homepage',
                     'category' => 'Category',
-                    'special' => 'Special',
                 ])
                 ->required()
                 ->live(),
-            Forms\Components\TextInput::make('special_value')
-                ->label('Special value')
-                ->required(fn (callable $get) => $get('location') === 'special')
-                ->visible(fn (callable $get) => $get('location') === 'special')
-                ->maxLength(255),
             Forms\Components\Select::make('collection_id')
                 ->label('Category')
                 ->options(function () {
@@ -94,6 +88,14 @@ class BannerResource extends BaseResource
                 ->searchable()
                 ->preload()
                 ->visible(fn (callable $get) => $get('location') === 'category'),
+            Forms\Components\Select::make('type')
+                ->label('Type')
+                ->options([
+                    'media' => 'Media',
+                    'special' => 'Special',
+                ])
+                ->required()
+                ->live(),
             SpatieMediaLibraryFileUpload::make('media')
                 ->label('Media')
                 ->collection('banners')
@@ -101,11 +103,17 @@ class BannerResource extends BaseResource
                 ->preserveFilenames()
                 ->openable()
                 ->downloadable()
-                ->required()
+                ->required(fn (callable $get) => $get('type') === 'media')
+                ->visible(fn (callable $get) => $get('type') === 'media')
                 ->acceptedFileTypes([
                     'image/*',
                     'video/*',
                 ]),
+            Forms\Components\TextInput::make('special_value')
+                ->label('Special value')
+                ->required(fn (callable $get) => $get('type') === 'special')
+                ->visible(fn (callable $get) => $get('type') === 'special')
+                ->maxLength(255),
             Forms\Components\TextInput::make('cta_url')
                 ->label('Button URL')
                 ->maxLength(2048),
@@ -159,10 +167,9 @@ class BannerResource extends BaseResource
             Tables\Columns\TextColumn::make('location')
                 ->label('Location')
                 ->badge(),
-            Tables\Columns\TextColumn::make('special_value')
-                ->label('Special value')
-                ->toggleable()
-                ->placeholder('—'),
+            Tables\Columns\TextColumn::make('type')
+                ->label('Type')
+                ->badge(),
             Tables\Columns\TextColumn::make('collection_name')
                 ->label('Category')
                 ->state(function (Model $record): ?string {

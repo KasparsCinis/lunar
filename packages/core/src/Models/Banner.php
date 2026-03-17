@@ -13,6 +13,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property int $id
  * @property string $name
  * @property string $location
+ * @property string $type
  * @property int|null $collection_id
  * @property string|null $special_value
  * @property string $media_type
