@@ -14,6 +14,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string $name
  * @property string $location
  * @property int|null $collection_id
+ * @property string|null $special_value
  * @property string $media_type
  * @property string|null $media_path
  * @property string|null $cta_label
