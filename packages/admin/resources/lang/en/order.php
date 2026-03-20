@@ -144,6 +144,10 @@ return [
             'label' => 'Notes',
             'placeholder' => 'No notes on this order',
         ],
+        'venipak_collection_point' => [
+            'label' => 'Collection point',
+            'placeholder' => 'No collection point recorded',
+        ],
         'delivery_instructions' => [
             'label' => 'Delivery Instructions',
         ],
