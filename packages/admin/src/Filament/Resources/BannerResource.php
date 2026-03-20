@@ -74,7 +74,12 @@ class BannerResource extends BaseResource
                     'category' => 'Category',
                 ])
                 ->required()
-                ->live(),
+                ->live()
+                ->afterStateUpdated(function (string $operation, $state, Forms\Set $set) {
+                    if ($state === 'homepage') {
+                        $set('collection_id', null);
+                    }
+                }),
             Forms\Components\Select::make('collection_id')
                 ->label('Category')
                 ->options(function () {

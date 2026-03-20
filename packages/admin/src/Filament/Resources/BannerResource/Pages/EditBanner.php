@@ -10,6 +10,17 @@ class EditBanner extends BaseEditRecord
 {
     protected static string $resource = BannerResource::class;
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $data = parent::mutateFormDataBeforeSave($data);
+
+        if (($data['location'] ?? null) === 'homepage') {
+            $data['collection_id'] = null;
+        }
+
+        return $data;
+    }
+
     public function getTitle(): string
     {
         return 'Edit banner';
