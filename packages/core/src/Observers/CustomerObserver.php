@@ -2,6 +2,7 @@
 
 namespace Lunar\Observers;
 
+use Lunar\Actions\Customers\RemoveUsersWhoOnlyBelongToCustomer;
 use Lunar\Models\Contracts\Customer as CustomerContract;
 
 class CustomerObserver
@@ -14,6 +15,8 @@ class CustomerObserver
      */
     public function deleting(CustomerContract $customer)
     {
+        RemoveUsersWhoOnlyBelongToCustomer::run($customer);
+
         if ($customer->isForceDeleting()) {
             $customer->customerGroups()->detach();
             $customer->discounts()->detach();

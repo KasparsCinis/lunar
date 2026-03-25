@@ -18,6 +18,10 @@ use Lunar\Admin\Filament\Resources\CustomerResource\Widgets\CustomerStatsOvervie
 use Lunar\Admin\Support\Resources\BaseResource;
 use Lunar\Models\Contracts\Customer as CustomerContract;
 
+/**
+ * Deleting a customer triggers {@see \Lunar\Observers\CustomerObserver}: accounts that are
+ * linked only to that customer are removed so login access ends and the email can be reused.
+ */
 class CustomerResource extends BaseResource
 {
     protected static ?string $permission = 'sales:manage-customers';
