@@ -58,6 +58,7 @@ class LunarPanelManager
         Resources\CurrencyResource::class,
         Resources\CustomerGroupResource::class,
         Resources\CustomerResource::class,
+        Resources\DevelopmentUpdateResource::class,
         Resources\DiscountResource::class,
         Resources\LanguageResource::class,
         Resources\OrderResource::class,
@@ -279,6 +280,9 @@ class LunarPanelManager
             ->navigationGroups([
                 'Catalog',
                 'Sales',
+                NavigationGroup::make()
+                    ->label('Development')
+                    ->collapsed(),
                 NavigationGroup::make()
                     ->label('Settings')
                     ->collapsed(),
