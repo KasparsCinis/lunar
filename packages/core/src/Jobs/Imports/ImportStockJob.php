@@ -11,15 +11,9 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Lunar\Facades\DB;
-use Lunar\FieldTypes\TranslatedText;
-use Lunar\Models\Brand;
-use Lunar\Models\Collection;
+use Lunar\Helpers\CurrencyHelper;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
-use Lunar\Models\Filters\Filter;
-use Lunar\Models\Filters\FilterProduct;
-use Lunar\Models\Product;
-use Lunar\Models\ProductType;
 use Lunar\Models\ProductVariant;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Row;
@@ -47,7 +41,6 @@ class ImportStockJob implements ShouldQueue
             $this->import = Import::findOrFail($this->importId);
 
             $disk = Storage::disk(config('media-library.disk_name'));
-            $currency = Currency::where('code', 'eur')->first();
             $excelPath = "";
 
             $excelMedia = $this->import->getFirstMedia('import_excel');
@@ -66,7 +59,7 @@ class ImportStockJob implements ShouldQueue
             }
 
             $this->import->status = Import::STATUS_IN_PROGRESS;
-            $this->import->progress = 'Updating stocks';
+            $this->import->progress = 'Updating stocks and prices';
             $this->import->saveOrFail();
 
             $spreadsheet = IOFactory::load($excelPath);
@@ -108,9 +101,35 @@ class ImportStockJob implements ShouldQueue
                     $data[$key] = $row[$columnType];
                 }
 
-                if (isset($data['sku']) && $product = ProductVariant::where('sku', '=', $data['sku'])->first()) {
-                    $product->stock = $data['stock'];
-                    $product->saveOrFail();
+                if (isset($data['sku']) && $variant = ProductVariant::where('sku', '=', $data['sku'])->first()) {
+                    if (array_key_exists('stock', $data)) {
+                        $variant->stock = $data['stock'];
+                    }
+                    $variant->saveOrFail();
+
+                    if (array_key_exists('price', $data)) {
+                        $currency = Currency::getDefault();
+                        if ($currency) {
+                            $cleaned = CurrencyHelper::cleanup($data['price']);
+                            if ($cleaned !== null && $cleaned !== '' && is_numeric($cleaned)) {
+                                $minor = (int) bcmul((string) $cleaned, (string) $currency->factor, 0);
+                                $priceModel = $variant->prices()
+                                    ->where('currency_id', $currency->id)
+                                    ->where('min_quantity', 1)
+                                    ->whereNull('customer_group_id')
+                                    ->first();
+                                if ($priceModel) {
+                                    $priceModel->update(['price' => $minor]);
+                                } else {
+                                    $variant->prices()->create([
+                                        'currency_id' => $currency->id,
+                                        'min_quantity' => 1,
+                                        'price' => $minor,
+                                    ]);
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if ($rowIndex % 25 === 0) {
@@ -124,7 +143,7 @@ class ImportStockJob implements ShouldQueue
             }
 
             $this->import->status = Import::STATUS_SUCCESS;
-            $this->import->progress = 'Stocks updated';
+            $this->import->progress = 'Stocks and prices updated';
             $this->import->saveOrFail();
         } catch (\Exception | \Throwable $e) {
             Log::error('Failed to import', [

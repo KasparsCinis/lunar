@@ -16,6 +16,7 @@ use Filament\Support\Enums\MaxWidth;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Lunar\Admin\Excel\ExportProductVariantStock;
 use Lunar\Admin\Filament\Resources\ProductResource;
 use Lunar\Admin\Support\Pages\BaseListRecords;
 use Lunar\Facades\DB;
@@ -95,6 +96,12 @@ class ListProducts extends BaseListRecords
                                         $get('excel_headers') ?? []
                                     )
                                     ->required(),
+
+                                Select::make('mapping.price')
+                                    ->label('Price')
+                                    ->options(fn (callable $get) => $get('excel_headers') ?? [])
+                                    ->nullable()
+                                    ->hint('Optional. Updates the variant base price (default currency, min. qty 1). Rows with an empty price cell keep the existing price.'),
                             ]),
                     ])
                         ->skippable(false),
@@ -114,6 +121,10 @@ class ListProducts extends BaseListRecords
 
                     return $this->redirect("/admin/imports/{$record->id}/edit");
                 }),
+            Actions\Action::make('downloadStock')
+                ->label('Download stock')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->action(fn () => ExportProductVariantStock::download()),
             Actions\CreateAction::make()->createAnother(false)->form(
                     static::createActionFormInputs()
                 )->using(
