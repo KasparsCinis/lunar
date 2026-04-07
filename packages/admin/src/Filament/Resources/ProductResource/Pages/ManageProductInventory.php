@@ -17,7 +17,7 @@ class ManageProductInventory extends BaseEditRecord
 
     public ?string $stock = null;
 
-    public ?int $stock_zero_delay = null;
+    public ?string $stock_zero_delay = null;
 
     public ?string $backorder = null;
 

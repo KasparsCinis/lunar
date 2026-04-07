@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table($this->prefix.'product_variants', function (Blueprint $table) {
-            $table->integer('stock_zero_delay')->nullable()->after('stock');
+            $table->string('stock_zero_delay')->default('4-7')->after('stock');
         });
     }
 
