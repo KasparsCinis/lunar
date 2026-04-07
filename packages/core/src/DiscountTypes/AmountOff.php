@@ -6,9 +6,11 @@ use Lunar\Base\ValueObjects\Cart\DiscountBreakdown;
 use Lunar\Base\ValueObjects\Cart\DiscountBreakdownLine;
 use Lunar\DataTypes\Price;
 use Lunar\Helpers\CurrencyHelper;
+use Illuminate\Support\Collection as IlluminateCollection;
 use Lunar\Models\Cart;
-use Lunar\Models\Collection;
+use Lunar\Models\Collection as LunarCollection;
 use Lunar\Models\Contracts\Cart as CartContract;
+use Lunar\Models\ProductVariant;
 
 class AmountOff extends AbstractDiscountType
 {
@@ -165,8 +167,26 @@ class AmountOff extends AbstractDiscountType
      */
     protected function getEligibleLines(CartContract $cart): \Illuminate\Support\Collection
     {
-        $collectionIds = $this->discount->collections->where('pivot.type', 'limitation')->pluck('id');
-        $collectionExclusionIds = $this->discount->collections->where('pivot.type', 'exclusion')->pluck('id');
+        $pivotCollections = $this->discount->collections;
+
+        $rawLimitationCollectionIds = $pivotCollections
+            ->filter(function ($collection) {
+                $type = (string) ($collection->pivot->type ?? 'limitation');
+
+                return $type === 'limitation';
+            })
+            ->pluck('id')
+            ->filter(fn ($id) => filled($id))
+            ->values();
+
+        $rawExclusionCollectionIds = $pivotCollections
+            ->filter(fn ($collection) => ($collection->pivot->type ?? '') === 'exclusion')
+            ->pluck('id')
+            ->filter(fn ($id) => filled($id))
+            ->values();
+
+        $collectionIds = $this->expandCollectionIdsWithDescendants($rawLimitationCollectionIds);
+        $collectionExclusionIds = $this->expandCollectionIdsWithDescendants($rawExclusionCollectionIds);
 
         $brandIds = $this->discount->brands->where('pivot.type', 'limitation')->pluck('id');
         $brandExclusionIds = $this->discount->brands->where('pivot.type', 'exclusion')->pluck('id');
@@ -181,19 +201,41 @@ class AmountOff extends AbstractDiscountType
 
         $lines = $cart->lines;
 
-        if ($collectionIds->count()) {
-            $lines = $lines->filter(function ($line) use ($collectionIds) {
-                return $line->purchasable->product()->whereHas('collections', function ($query) use ($collectionIds) {
-                    $query->whereIn((new Collection)->getTable().'.id', $collectionIds);
-                })->exists();
-            });
+        if ($rawLimitationCollectionIds->isNotEmpty()) {
+            if ($collectionIds->isEmpty()) {
+                $lines = collect();
+            } else {
+                $lines = $lines->filter(function ($line) use ($collectionIds) {
+                    $product = $line->purchasable instanceof ProductVariant
+                        ? $line->purchasable->product
+                        : null;
+
+                    if (! $product) {
+                        return false;
+                    }
+
+                    return $product->collections
+                        ->pluck('id')
+                        ->intersect($collectionIds)
+                        ->isNotEmpty();
+                });
+            }
         }
 
         if ($collectionExclusionIds->count()) {
             $lines = $lines->reject(function ($line) use ($collectionExclusionIds) {
-                return $line->purchasable->product()->whereHas('collections', function ($query) use ($collectionExclusionIds) {
-                    $query->whereIn((new Collection)->getTable().'.id', $collectionExclusionIds);
-                })->exists();
+                $product = $line->purchasable instanceof ProductVariant
+                    ? $line->purchasable->product
+                    : null;
+
+                if (! $product) {
+                    return false;
+                }
+
+                return $product->collections
+                    ->pluck('id')
+                    ->intersect($collectionExclusionIds)
+                    ->isNotEmpty();
             });
         }
 
@@ -222,6 +264,40 @@ class AmountOff extends AbstractDiscountType
         }
 
         return $lines;
+    }
+
+    /**
+     * Include every descendant collection id so a limitation (or exclusion) on a parent
+     * category applies to products assigned only to sub-categories.
+     *
+     * Nested-set models scoped by attributes (e.g. Lunar collections use collection_group_id)
+     * must not use static LunarCollection::descendantsAndSelf($id): that builds a query from an
+     * empty model, so the scope is wrong and the node is never found.
+     *
+     * @param  IlluminateCollection<int, int|string>  $collectionIds
+     * @return IlluminateCollection<int, int>
+     */
+    private function expandCollectionIdsWithDescendants(IlluminateCollection $collectionIds): IlluminateCollection
+    {
+        $collectionIds = $collectionIds->filter(fn ($id) => filled($id))->values();
+
+        if ($collectionIds->isEmpty()) {
+            return $collectionIds;
+        }
+
+        $expanded = collect();
+
+        foreach ($collectionIds as $id) {
+            $node = LunarCollection::query()->find($id);
+
+            if (! $node) {
+                continue;
+            }
+
+            $expanded = $expanded->merge($node->descendants()->pluck('id'))->push($node->getKey());
+        }
+
+        return $expanded->unique()->values()->map(fn ($id) => (int) $id);
     }
 
     /**

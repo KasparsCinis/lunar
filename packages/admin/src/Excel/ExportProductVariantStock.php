@@ -29,7 +29,7 @@ class ExportProductVariantStock
         $row = 2;
 
         ProductVariant::query()
-            ->whereHas('product')
+            ->whereHas('product', fn ($q) => $q->withoutTrashed())
             ->with([
                 'product',
                 'values',

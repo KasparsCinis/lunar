@@ -139,6 +139,8 @@ class DiscountManager implements DiscountManagerInterface
             ->customerGroup($this->customerGroups)
             ->with([
                 'discountables',
+                'collections',
+                'brands',
             ])
             ->when(
                 $cart,
