@@ -118,6 +118,16 @@ class ProductVariantResource extends BaseResource
             )->numeric();
     }
 
+    public static function getStockZeroDelayFormComponent(): Forms\Components\TextInput
+    {
+        return Forms\Components\TextInput::make('stock_zero_delay')
+            ->label(
+                __('lunarpanel::productvariant.form.stock_zero_delay.label')
+            )->helperText(
+                __('lunarpanel::productvariant.form.stock_zero_delay.helper_text')
+            )->numeric();
+    }
+
     public static function getBackorderFormComponent(): Forms\Components\TextInput
     {
         return

@@ -66,6 +66,7 @@ class ManageVariantInventory extends BaseEditRecord
         return $form->schema([
             Section::make()->schema([
                 ProductVariantResource::getStockFormComponent(),
+                ProductVariantResource::getStockZeroDelayFormComponent(),
                 ProductVariantResource::getBackorderFormComponent(),
                 ProductVariantResource::getPurchasableFormComponent(),
                 ProductVariantResource::getUnitQtyFormComponent(),

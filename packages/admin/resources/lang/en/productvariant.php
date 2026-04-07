@@ -48,6 +48,10 @@ return [
         'stock' => [
             'label' => 'In Stock',
         ],
+        'stock_zero_delay' => [
+            'label' => 'Shipping delay for stock 0',
+            'helper_text' => 'Text shown when stock is 0',
+        ],
         'backorder' => [
             'label' => 'On Backorder',
         ],

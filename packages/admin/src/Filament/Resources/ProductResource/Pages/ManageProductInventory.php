@@ -17,6 +17,8 @@ class ManageProductInventory extends BaseEditRecord
 
     public ?string $stock = null;
 
+    public ?int $stock_zero_delay = null;
+
     public ?string $backorder = null;
 
     public ?string $purchasable = null;
@@ -64,6 +66,7 @@ class ManageProductInventory extends BaseEditRecord
         $variant = $this->getVariant();
 
         $this->stock = $variant->stock;
+        $this->stock_zero_delay = $variant->stock_zero_delay;
         $this->backorder = $variant->backorder;
         $this->purchasable = $variant->purchasable;
         $this->unit_quantity = $variant->unit_quantity;
