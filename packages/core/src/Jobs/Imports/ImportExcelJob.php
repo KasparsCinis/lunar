@@ -223,6 +223,7 @@ class ImportExcelJob implements ShouldQueue
 
                 foreach ($mapping as $key => $columnType) {
                     if (Str::contains($columnType, 'filter-')
+                        && isset($data[$columnType])
                         && $data[$columnType]
                         && $id = explode('-', $columnType)[1] ?? null
                     ) {
