@@ -26,9 +26,12 @@ class SyncBoschProducts
 
         $response = Http::timeout(300)
             ->accept('application/xml, text/xml, */*')
-            ->get($url, [
+            ->asForm()
+            ->post($url, [
                 'RequestFrom' => $requestFrom,
+                'RequestType' => 'Products',
                 'Passcode' => $passcode,
+                'RequestParameters' => 'PT',
             ]);
 
         if (! $response->successful()) {

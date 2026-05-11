@@ -53,8 +53,9 @@ return [
     | Bosch product feed (XML)
     |--------------------------------------------------------------------------
     |
-    | Used by the "Sync Bosch" action on the products list. Set in .env:
-    | BOSCH_API_URL, BOSCH_API_REQUESTFROM, BOSCH_API_PASSCODE
+    | Used by the "Sync Bosch" action on the products list. POSTs to BOSCH_API_URL
+    | with form body: RequestFrom, RequestType=Products, Passcode, RequestParameters=PT.
+    | Set in .env: BOSCH_API_URL, BOSCH_API_REQUESTFROM, BOSCH_API_PASSCODE
     |
     */
     'bosch' => [
