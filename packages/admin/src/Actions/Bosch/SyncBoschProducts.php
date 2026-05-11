@@ -71,8 +71,12 @@ class SyncBoschProducts
             }
 
             $balance = isset($product->AvailableBalance) ? trim((string) $product->AvailableBalance) : '';
-            if ($balance !== '' && is_numeric($balance)) {
-                $variant->stock = (int) round((float) $balance);
+            if ($balance !== '') {
+                if (preg_match('/^\d+\+$/', $balance)) {
+                    $variant->stock = 999;
+                } elseif (is_numeric($balance)) {
+                    $variant->stock = (int) round((float) $balance);
+                }
             }
 
             $retailPrice = isset($product->RetailPrice) ? trim((string) $product->RetailPrice) : '';
