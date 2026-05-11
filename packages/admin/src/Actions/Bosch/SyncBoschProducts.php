@@ -27,6 +27,7 @@ class SyncBoschProducts
         $response = Http::timeout(300)
             ->accept('application/xml, text/xml, */*')
             ->asForm()
+            ->withoutVerifying()
             ->post($url, [
                 'RequestFrom' => $requestFrom,
                 'RequestType' => 'Products',
