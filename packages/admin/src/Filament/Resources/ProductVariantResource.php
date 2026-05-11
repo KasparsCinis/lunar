@@ -125,7 +125,8 @@ class ProductVariantResource extends BaseResource
                 __('lunarpanel::productvariant.form.stock_zero_delay.label')
             )->helperText(
                 __('lunarpanel::productvariant.form.stock_zero_delay.helper_text')
-            )->rule('regex:/^\d+(-\d+)?$/');
+            )->nullable()
+            ->rules(['nullable', 'regex:/^\d+(-\d+)?$/']);
     }
 
     public static function getBackorderFormComponent(): Forms\Components\TextInput

@@ -29,6 +29,8 @@ use Lunar\Models\Product;
 use Lunar\Models\TaxClass;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Lunar\Admin\Actions\Bosch\SyncBoschProducts;
 
 class ListProducts extends BaseListRecords
 {
@@ -125,6 +127,28 @@ class ListProducts extends BaseListRecords
                 ->label('Download stock')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => ExportProductVariantStock::download()),
+            Actions\Action::make('syncBosch')
+                ->label('Sync Bosch')
+                ->icon('heroicon-o-arrow-path')
+                ->requiresConfirmation()
+                ->modalHeading('Sync products from Bosch')
+                ->modalDescription('Fetches the Bosch XML feed and updates stock')
+                ->action(function () {
+                    try {
+                        $result = app(SyncBoschProducts::class)();
+                        Notification::make()
+                            ->title('Bosch sync completed')
+                            ->body("Updated {$result['updated']} variant(s); {$result['in_feed']} item(s) in feed.")
+                            ->success()
+                            ->send();
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->title('Bosch sync failed')
+                            ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+                    }
+                }),
             Actions\CreateAction::make()->createAnother(false)->form(
                     static::createActionFormInputs()
                 )->using(

@@ -48,4 +48,19 @@ return [
     */
     'order_count_statuses' => ['payment-received'],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Bosch product feed (XML)
+    |--------------------------------------------------------------------------
+    |
+    | Used by the "Sync Bosch" action on the products list. Set in .env:
+    | BOSCH_API_URL, BOSCH_API_REQUESTFROM, BOSCH_API_PASSCODE
+    |
+    */
+    'bosch' => [
+        'api_url' => env('BOSCH_API_URL'),
+        'request_from' => env('BOSCH_API_REQUESTFROM'),
+        'passcode' => env('BOSCH_API_PASSCODE'),
+    ],
+
 ];
