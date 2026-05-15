@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 use Lunar\Admin\Auth\Manifest;
+use Illuminate\Console\Scheduling\Schedule;
 use Lunar\Admin\Console\Commands\MakeLunarAdminCommand;
+use Lunar\Admin\Console\Commands\SyncPageViewAnalyticsCommand;
 use Lunar\Admin\Database\State\EnsureBaseRolesAndPermissions;
 use Lunar\Admin\Events\ChildCollectionCreated;
 use Lunar\Admin\Events\CollectionProductDetached;
@@ -87,6 +89,7 @@ class LunarPanelProvider extends ServiceProvider
 
             $this->commands([
                 MakeLunarAdminCommand::class,
+                SyncPageViewAnalyticsCommand::class,
             ]);
         }
 
@@ -118,6 +121,10 @@ class LunarPanelProvider extends ServiceProvider
         $this->registerStateListeners();
         $this->registerLunarSynthesizer();
         // $this->registerUpgradedListener();
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command('lunar:sync-page-view-analytics')->dailyAt('01:15');
+        });
     }
 
     /**

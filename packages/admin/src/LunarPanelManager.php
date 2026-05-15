@@ -49,6 +49,7 @@ class LunarPanelManager
 
     protected static $resources = [
         Resources\ActivityResource::class,
+        Resources\PageViewDailyStatisticResource::class,
         Resources\AttributeGroupResource::class,
         Resources\BrandResource::class,
         Resources\BannerResource::class,
@@ -109,6 +110,7 @@ class LunarPanelManager
 
             // Lunar
             'lunar::activity' => 'lucide-activity',
+            'lunar::page-analytics' => 'lucide-line-chart',
             'lunar::attributes' => 'lucide-pencil-ruler',
             'lunar::availability' => 'lucide-calendar',
             'lunar::basic-information' => 'lucide-edit',

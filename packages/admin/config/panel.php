@@ -64,4 +64,21 @@ return [
         'passcode' => env('BOSCH_API_PASSCODE'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Page view analytics (activity_log)
+    |--------------------------------------------------------------------------
+    |
+    | Nightly job rolls up `activity_log` rows into lunar_page_view_* tables.
+    | Configure the Spatie log_name used when recording storefront page views.
+    |
+    */
+    'page_view_analytics' => [
+        'log_name' => env('LUNAR_PAGE_VIEWS_LOG_NAME', 'page_views'),
+        'retention_days' => (int) env('LUNAR_PAGE_VIEWS_RETENTION_DAYS', 30),
+        'chart_days' => (int) env('LUNAR_PAGE_VIEWS_CHART_DAYS', 30),
+        'top_paths_per_day' => (int) env('LUNAR_PAGE_VIEWS_TOP_PATHS', 200),
+    ],
+
 ];
+
