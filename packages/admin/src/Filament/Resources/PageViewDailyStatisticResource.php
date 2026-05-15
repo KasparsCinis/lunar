@@ -8,6 +8,10 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 use Lunar\Admin\Filament\Resources\PageViewDailyStatisticResource\Pages;
+use Lunar\Admin\Filament\Widgets\PageAnalytics\PageAnalyticsOverview;
+use Lunar\Admin\Filament\Widgets\PageAnalytics\PageAverageSessionChart;
+use Lunar\Admin\Filament\Widgets\PageAnalytics\PageMostVisitedPathsChart;
+use Lunar\Admin\Filament\Widgets\PageAnalytics\PageTrafficChart;
 use Lunar\Admin\Models\PageViewDailyStatistic;
 use Lunar\Admin\Support\Resources\BaseResource;
 
@@ -37,6 +41,16 @@ class PageViewDailyStatisticResource extends BaseResource
     public static function getNavigationGroup(): ?string
     {
         return __('lunarpanel::global.sections.settings');
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            PageAnalyticsOverview::class,
+            PageTrafficChart::class,
+            PageAverageSessionChart::class,
+            PageMostVisitedPathsChart::class,
+        ];
     }
 
     public static function getDefaultForm(Form $form): Form

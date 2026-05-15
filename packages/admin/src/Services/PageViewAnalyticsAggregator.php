@@ -68,7 +68,8 @@ class PageViewAnalyticsAggregator
         $sessionSeconds = [];
 
         foreach ($byVisitor as $slot) {
-            $sessionSeconds[] = max(0, $slot['last']->diffInSeconds($slot['first']));
+            // Carbon 3: diffInSeconds is signed (negative when $this > $other).
+            $sessionSeconds[] = (int) $slot['first']->diffInSeconds($slot['last']);
         }
 
         $avgSession = $uniqueVisitors > 0
