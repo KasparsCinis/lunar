@@ -23,21 +23,11 @@ class PageViewAnalyticsAggregator
             ->whereDate('created_at', $day);
 
         $byVisitor = [];
-        $pathCounts = [];
-        $totalViews = 0;
-        $authenticatedVisitors = [];
+        $minSessionSeconds = max(0, (int) config('lunar.panel.page_view_analytics.min_session_seconds', 15));
 
         foreach ($query->cursor() as $activity) {
             /** @var Activity $activity */
-            $totalViews++;
             $props = $this->normalizeProperties($activity);
-
-            $path = (string) ($props['path'] ?? '');
-            if ($path === '') {
-                $path = '(unknown)';
-            }
-            $path = mb_substr($path, 0, 512);
-            $pathCounts[$path] = ($pathCounts[$path] ?? 0) + 1;
 
             $hash = $props['visitor_hash'] ?? null;
             if (! is_string($hash) || $hash === '') {
@@ -49,6 +39,9 @@ class PageViewAnalyticsAggregator
                 $byVisitor[$hash] = [
                     'first' => $ts,
                     'last' => $ts,
+                    'views' => 0,
+                    'authenticated' => false,
+                    'paths' => [],
                 ];
             } else {
                 if ($ts->lt($byVisitor[$hash]['first'])) {
@@ -59,17 +52,45 @@ class PageViewAnalyticsAggregator
                 }
             }
 
+            $path = (string) ($props['path'] ?? '');
+            if ($path === '') {
+                $path = '(unknown)';
+            }
+            $path = mb_substr($path, 0, 512);
+
+            $byVisitor[$hash]['views']++;
+            $byVisitor[$hash]['paths'][$path] = ($byVisitor[$hash]['paths'][$path] ?? 0) + 1;
+
             if (! empty($props['visitor_authenticated'])) {
-                $authenticatedVisitors[$hash] = true;
+                $byVisitor[$hash]['authenticated'] = true;
             }
         }
 
-        $uniqueVisitors = count($byVisitor);
+        $uniqueVisitors = 0;
+        $authenticatedVisitors = 0;
+        $totalViews = 0;
+        $pathCounts = [];
         $sessionSeconds = [];
 
         foreach ($byVisitor as $slot) {
             // Carbon 3: diffInSeconds is signed (negative when $this > $other).
-            $sessionSeconds[] = (int) $slot['first']->diffInSeconds($slot['last']);
+            $duration = (int) $slot['first']->diffInSeconds($slot['last']);
+
+            if ($duration < $minSessionSeconds) {
+                continue;
+            }
+
+            $uniqueVisitors++;
+            $sessionSeconds[] = $duration;
+            $totalViews += $slot['views'];
+
+            if ($slot['authenticated']) {
+                $authenticatedVisitors++;
+            }
+
+            foreach ($slot['paths'] as $path => $views) {
+                $pathCounts[$path] = ($pathCounts[$path] ?? 0) + $views;
+            }
         }
 
         $avgSession = $uniqueVisitors > 0
@@ -79,7 +100,7 @@ class PageViewAnalyticsAggregator
         PageViewDailyStatistic::query()->create([
             'stat_date' => $day->toDateString(),
             'unique_visitors' => $uniqueVisitors,
-            'authenticated_visitors' => count($authenticatedVisitors),
+            'authenticated_visitors' => $authenticatedVisitors,
             'total_views' => $totalViews,
             'avg_session_seconds' => $avgSession,
         ]);
