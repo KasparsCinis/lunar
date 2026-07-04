@@ -440,7 +440,9 @@ class ImportExcelJob implements ShouldQueue
         $imagePath = trim($imagePath);
 
         if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
-            $response = Http::timeout(30)->get($imagePath);
+            $response = Http::timeout(30)
+                ->withoutVerifying()
+                ->get($imagePath);
 
             if (!$response->successful()) {
                 return;
