@@ -386,24 +386,8 @@ class ImportExcelJob implements ShouldQueue
         bool $isUpdate
     ): void {
         if ($isUpdate) {
-            $this->moveProductWithinImportCollection($product, $importCollection, $targetCollection);
-
-            return;
+            $product->collections()->detach();
         }
-
-        $product->collections()->attach($targetCollection->id, [
-            'position' => $this->getNextCollectionPosition($targetCollection),
-        ]);
-    }
-
-    protected function moveProductWithinImportCollection(
-        Product $product,
-        Collection $importCollection,
-        Collection $targetCollection
-    ): void {
-        $importCollectionIds = $importCollection->descendantsAndSelf()->pluck('id')->all();
-
-        $product->collections()->detach($importCollectionIds);
 
         $product->collections()->attach($targetCollection->id, [
             'position' => $this->getNextCollectionPosition($targetCollection),
