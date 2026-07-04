@@ -75,9 +75,7 @@ class ManageCollectionProducts extends BaseManageRelatedRecords
                 ->limit(1)
                 ->square()
                 ->label(''),
-            Tables\Columns\TextColumn::make('attribute_data.name')
-                ->formatStateUsing(fn (Model $record): string => $record->translateAttribute('name'))
-                ->label(__('lunarpanel::product.table.name.label')),
+            ProductResource::getNameTableColumn(),
         ])->actions([
             Tables\Actions\DetachAction::make()->after(
                 fn () => CollectionProductDetached::dispatch($this->getOwnerRecord())
