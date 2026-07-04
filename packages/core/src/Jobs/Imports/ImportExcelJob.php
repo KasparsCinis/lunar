@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -32,6 +33,7 @@ class ImportExcelJob implements ShouldQueue
 
     protected string $importId;
     protected Import $import;
+    protected array $collectionPositions = [];
 
     public function __construct(string $importId)
     {
@@ -93,8 +95,7 @@ class ImportExcelJob implements ShouldQueue
             $mapping = $this->import->column_mapping;
 
             $collection = Collection::findOrFail($this->import->collection_id);
-            $prefix = config('lunar.database.table_prefix');
-            $nextPosition = ($collection->products()->max( "{$prefix}collection_product.position") ?? 1) + 1;
+            $collection->load('children');
 
             /** @var $rowModel Row */
             foreach ($sheet->getRowIterator() as $rowIndex => $rowModel) {
@@ -169,10 +170,27 @@ class ImportExcelJob implements ShouldQueue
                         $price->saveOrFail();
                     }
                     if (isset($data['stock'])) {
-                        $product->variant->stock = $data['stock'];
+                        $product->variant->stock = $this->parseStock($data['stock']);
                         $product->variant->saveOrFail();
                     }
+
+                    if (!empty($data['collection_name'])) {
+                        $subCollection = $this->findSubCollectionByName($collection, $data['collection_name']);
+                        if ($subCollection && !$product->collections()->whereKey($subCollection->id)->exists()) {
+                            $product->collections()->attach($subCollection->id, [
+                                'position' => $this->getNextCollectionPosition($subCollection),
+                            ]);
+                        }
+                    }
                 } else {
+                    $targetCollection = $collection;
+                    if (!empty($data['collection_name'])) {
+                        $subCollection = $this->findSubCollectionByName($collection, $data['collection_name']);
+                        if ($subCollection) {
+                            $targetCollection = $subCollection;
+                        }
+                    }
+
                     $product = Product::create([
                         'status' => 'published',
                         'product_type_id' => ProductType::first()->id,
@@ -188,13 +206,13 @@ class ImportExcelJob implements ShouldQueue
                         ]),
                     ]);
 
-                    $product->collections()->attach($this->import->collection_id, [
-                        'position' => $nextPosition
+                    $product->collections()->attach($targetCollection->id, [
+                        'position' => $this->getNextCollectionPosition($targetCollection),
                     ]);
 
                     $variant = $product->variants()->create([
                         'sku' => $data['sku'] ?? 'SKU-' . uniqid(),
-                        'stock' => $data['stock'] ?? 0,
+                        'stock' => isset($data['stock']) ? $this->parseStock($data['stock']) : 0,
                         'tax_class_id' => 1, //@todo
                     ]);
 
@@ -204,7 +222,6 @@ class ImportExcelJob implements ShouldQueue
                         'min_quantity' => 1
                     ]);
 
-                    $nextPosition++;
                 }
 
                 if (isset($data['brand']) && $data['brand']) {
@@ -239,38 +256,9 @@ class ImportExcelJob implements ShouldQueue
                     }
                 }
 
-                // Attach images if zip provided
                 if (!empty($data['images'])) {
                     foreach ($data['images'] as $imagePath) {
-                        $imagePathFromZip = $this->findImagePath($zipImagesPath, trim($imagePath));
-
-                        if ($imagePathFromZip && file_exists($imagePathFromZip)) {
-                            $product->addMedia($imagePathFromZip)
-                                ->preservingOriginal()
-                                ->toMediaCollection('images');
-                        } else {
-                            /**
-                             * Sometimes zip files are too big - in which case images might already be uploaded beforehand to storage
-                             * Check if the images don't already exist
-                             */
-                            if ($disk->exists('zipImages/' . $imagePath)) {
-                                $tempFile = tempnam(sys_get_temp_dir(), 'img_');
-                                $stream = $disk->readStream('zipImages/' . $imagePath);
-
-                                if ($stream) {
-                                    file_put_contents($tempFile, stream_get_contents($stream));
-                                    fclose($stream);
-
-                                    $product->addMedia($tempFile)
-                                        ->usingFileName(basename($imagePath))
-                                        ->preservingOriginal()
-                                        ->toMediaCollection('images');
-
-                                    // Clean up temporary file
-                                    @unlink($tempFile);
-                                }
-                            }
-                        }
+                        $this->attachProductImage($product, $imagePath, $zipImagesPath, $disk);
                     }
                 }
 
@@ -311,6 +299,112 @@ class ImportExcelJob implements ShouldQueue
     protected function parsePrice($price)
     {
         return (int) (floatval(str_replace(',', '.', $price)) * 100);
+    }
+
+    protected function parseStock($stock): int
+    {
+        $stock = trim((string) $stock);
+
+        if (preg_match('/^(\d+)\+$/', $stock, $matches)) {
+            return (int) $matches[1] + 1;
+        }
+
+        return (int) $stock;
+    }
+
+    protected function getNextCollectionPosition(Collection $collection): int
+    {
+        if (!isset($this->collectionPositions[$collection->id])) {
+            $prefix = config('lunar.database.table_prefix');
+            $this->collectionPositions[$collection->id] = ($collection->products()->max("{$prefix}collection_product.position") ?? 0) + 1;
+        }
+
+        return $this->collectionPositions[$collection->id]++;
+    }
+
+    protected function findSubCollectionByName(Collection $parent, string $name): ?Collection
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return null;
+        }
+
+        foreach ($parent->children as $child) {
+            foreach (['en', 'lv'] as $locale) {
+                $childName = trim((string) $child->translateAttribute('name', $locale));
+
+                if ($childName !== '' && strcasecmp($childName, $name) === 0) {
+                    return $child;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    protected function attachProductImage(Product $product, string $imagePath, ?string $zipImagesPath, $disk): void
+    {
+        $imagePath = trim($imagePath);
+
+        if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
+            $response = Http::timeout(30)->get($imagePath);
+
+            if (!$response->successful()) {
+                return;
+            }
+
+            $contentType = strtolower(trim(explode(';', (string) $response->header('Content-Type'))[0]));
+
+            if (!str_starts_with($contentType, 'image/')) {
+                return;
+            }
+
+            $tempFile = tempnam(sys_get_temp_dir(), 'img_');
+            file_put_contents($tempFile, $response->body());
+
+            try {
+                $product->addMedia($tempFile)
+                    ->usingFileName(basename(parse_url($imagePath, PHP_URL_PATH) ?: 'image.jpg'))
+                    ->preservingOriginal()
+                    ->toMediaCollection('images');
+            } finally {
+                @unlink($tempFile);
+            }
+
+            return;
+        }
+
+        $imagePathFromZip = $this->findImagePath($zipImagesPath, $imagePath);
+
+        if ($imagePathFromZip && file_exists($imagePathFromZip)) {
+            $product->addMedia($imagePathFromZip)
+                ->preservingOriginal()
+                ->toMediaCollection('images');
+
+            return;
+        }
+
+        /**
+         * Sometimes zip files are too big - in which case images might already be uploaded beforehand to storage
+         * Check if the images don't already exist
+         */
+        if ($disk->exists('zipImages/' . $imagePath)) {
+            $tempFile = tempnam(sys_get_temp_dir(), 'img_');
+            $stream = $disk->readStream('zipImages/' . $imagePath);
+
+            if ($stream) {
+                file_put_contents($tempFile, stream_get_contents($stream));
+                fclose($stream);
+
+                $product->addMedia($tempFile)
+                    ->usingFileName(basename($imagePath))
+                    ->preservingOriginal()
+                    ->toMediaCollection('images');
+
+                @unlink($tempFile);
+            }
+        }
     }
 
     protected function findImagePath($basePath, $imageName)

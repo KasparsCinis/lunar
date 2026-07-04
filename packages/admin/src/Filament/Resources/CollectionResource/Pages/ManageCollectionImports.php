@@ -91,6 +91,7 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             'sku' => 'SKU',
             'price' => 'Price',
             'stock' => 'Stock',
+            'collection_name' => 'Collection (name based)',
             'image' => 'Image',
             'brand' => 'Brand',
             'min_stock' => 'Minimum order amount'
