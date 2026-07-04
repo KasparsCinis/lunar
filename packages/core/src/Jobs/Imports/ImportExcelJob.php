@@ -7,7 +7,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -440,22 +439,20 @@ class ImportExcelJob implements ShouldQueue
         $imagePath = trim($imagePath);
 
         if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
-            $response = Http::timeout(30)
-                ->withoutVerifying()
-                ->get($imagePath);
+            $download = $this->downloadImageFromUrl($imagePath);
 
-            if (!$response->successful()) {
+            if (!$download) {
                 return;
             }
 
-            $contentType = strtolower(trim(explode(';', (string) $response->header('Content-Type'))[0]));
+            $contentType = strtolower(trim(explode(';', $download['content_type'])[0]));
 
-            if (!str_starts_with($contentType, 'image/')) {
+            if (!$this->isImageContent($contentType, $imagePath)) {
                 return;
             }
 
             $tempFile = tempnam(sys_get_temp_dir(), 'img_');
-            file_put_contents($tempFile, $response->body());
+            file_put_contents($tempFile, $download['body']);
 
             try {
                 $product->addMedia($tempFile)
@@ -499,6 +496,49 @@ class ImportExcelJob implements ShouldQueue
                 @unlink($tempFile);
             }
         }
+    }
+
+    protected function downloadImageFromUrl(string $url): ?array
+    {
+        if (!function_exists('curl_init')) {
+            return null;
+        }
+
+        $ch = curl_init($url);
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_USERAGENT => 'LunarImport/1.0',
+        ]);
+
+        $body = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE) ?: '';
+        curl_close($ch);
+
+        if ($body === false || $statusCode < 200 || $statusCode >= 300) {
+            return null;
+        }
+
+        return [
+            'body' => $body,
+            'content_type' => $contentType,
+        ];
+    }
+
+    protected function isImageContent(string $contentType, string $url): bool
+    {
+        if ($contentType !== '' && str_starts_with($contentType, 'image/')) {
+            return true;
+        }
+
+        $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: '', PATHINFO_EXTENSION));
+
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'], true);
     }
 
     protected function findImagePath($basePath, $imageName)
