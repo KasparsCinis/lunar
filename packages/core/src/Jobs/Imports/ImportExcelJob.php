@@ -455,6 +455,11 @@ class ImportExcelJob implements ShouldQueue
     protected function attachProductImage(Product $product, string $imagePath, ?string $zipImagesPath, $disk): void
     {
         $imagePath = trim($imagePath);
+        $fileName = $this->resolveImageFileName($imagePath);
+
+        if ($this->productHasImage($product, $fileName)) {
+            return;
+        }
 
         if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
             $download = $this->downloadImageFromUrl($imagePath);
@@ -474,7 +479,7 @@ class ImportExcelJob implements ShouldQueue
 
             try {
                 $product->addMedia($tempFile)
-                    ->usingFileName(basename(parse_url($imagePath, PHP_URL_PATH) ?: 'image.jpg'))
+                    ->usingFileName($fileName)
                     ->preservingOriginal()
                     ->toMediaCollection('images');
             } finally {
@@ -507,7 +512,7 @@ class ImportExcelJob implements ShouldQueue
                 fclose($stream);
 
                 $product->addMedia($tempFile)
-                    ->usingFileName(basename($imagePath))
+                    ->usingFileName($fileName)
                     ->preservingOriginal()
                     ->toMediaCollection('images');
 
@@ -557,6 +562,26 @@ class ImportExcelJob implements ShouldQueue
         $extension = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?: '', PATHINFO_EXTENSION));
 
         return in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'], true);
+    }
+
+    protected function resolveImageFileName(string $imagePath): string
+    {
+        if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
+            return basename(parse_url($imagePath, PHP_URL_PATH) ?: 'image.jpg');
+        }
+
+        return basename($imagePath);
+    }
+
+    protected function productHasImage(Product $product, string $fileName): bool
+    {
+        foreach ($product->getMedia('images') as $media) {
+            if (strcasecmp($media->file_name, $fileName) === 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function findImagePath($basePath, $imageName)
