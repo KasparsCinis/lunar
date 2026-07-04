@@ -33,6 +33,7 @@ use Lunar\Admin\Models\Staff;
 use Lunar\Admin\Support\ActivityLog\Manifest as ActivityLogManifest;
 use Lunar\Admin\Support\Forms\AttributeData;
 use Lunar\Admin\Support\Synthesizers\PriceSynth;
+use Lunar\Models\Contracts\Collection as CollectionContract;
 
 class LunarPanelProvider extends ServiceProvider
 {
@@ -111,6 +112,15 @@ class LunarPanelProvider extends ServiceProvider
             ModelPricesUpdated::class,
             ModelUrlsUpdated::class,
         ], fn ($event) => sync_with_search($event->model));
+
+        Event::listen([
+            ModelChannelsUpdated::class,
+            ProductCustomerGroupsUpdated::class,
+        ], function ($event) {
+            if ($event->model instanceof CollectionContract) {
+                clear_application_cache();
+            }
+        });
 
         $this->publishes([
             __DIR__.'/../public' => public_path('vendor/lunarpanel'),

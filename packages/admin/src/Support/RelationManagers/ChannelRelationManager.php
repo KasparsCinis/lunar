@@ -69,7 +69,7 @@ class ChannelRelationManager extends BaseRelationManager
                 ])->recordTitle(function ($record) {
                     return $record->name;
                 })->after(
-                    fn () => sync_with_search(
+                    fn () => ModelChannelsUpdated::dispatch(
                         $this->getOwnerRecord()
                     )
                 )->preloadRecordSelect()

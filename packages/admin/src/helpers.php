@@ -17,6 +17,13 @@ if (! function_exists('price')) {
     }
 }
 
+if (! function_exists('clear_application_cache')) {
+    function clear_application_cache(): void
+    {
+        Illuminate\Support\Facades\Artisan::call('cache:clear');
+    }
+}
+
 if (! function_exists('sync_with_search')) {
     function sync_with_search(?Illuminate\Database\Eloquent\Model $model = null): void
     {
