@@ -19,6 +19,7 @@ use Lunar\Models\Excel\Import;
 use Lunar\Models\Filters\FilterProduct;
 use Lunar\Models\Product;
 use Lunar\Models\ProductType;
+use Lunar\Models\ProductVariant;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Row;
 use ZipArchive;
@@ -147,7 +148,7 @@ class ImportExcelJob implements ShouldQueue
 
                 $targetCollection = $this->resolveTargetCollection($collection, $data['collection_names']);
 
-                if (isset($data['id']) && $product = Product::find($data['id'])) {
+                if ($product = $this->findExistingProduct($data)) {
                     /** @var $product Product */
 
                     if (isset($data['name_en'])
@@ -291,6 +292,23 @@ class ImportExcelJob implements ShouldQueue
     protected function parsePrice($price)
     {
         return (int) (floatval(str_replace(',', '.', $price)) * 100);
+    }
+
+    protected function findExistingProduct(array $data): ?Product
+    {
+        if (isset($data['id']) && $product = Product::find($data['id'])) {
+            return $product;
+        }
+
+        if (isset($data['sku'])) {
+            $sku = trim((string) $data['sku']);
+
+            if ($sku !== '' && $variant = ProductVariant::where('sku', $sku)->first()) {
+                return $variant->product;
+            }
+        }
+
+        return null;
     }
 
     protected function parseStock($stock): int
