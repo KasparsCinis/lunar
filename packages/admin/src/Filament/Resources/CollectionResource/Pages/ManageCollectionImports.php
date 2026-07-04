@@ -91,11 +91,35 @@ class ManageCollectionImports extends BaseManageRelatedRecords
             'sku' => 'SKU',
             'price' => 'Price',
             'stock' => 'Stock',
-            'collection_name' => 'Collection (name based)',
+            'collection_name' => 'Collection level (name based)',
             'image' => 'Image',
             'brand' => 'Brand',
             'min_stock' => 'Minimum order amount'
         ] + $filters;
+    }
+
+    private function columnAliases(): array
+    {
+        return [
+            'article' => 'sku',
+            'descriptionlat' => 'name_lv',
+            'availablebalance' => 'stock',
+        ];
+    }
+
+    private function premapColumn(string $column, array $mappings): ?string
+    {
+        if (in_array($column, $mappings, true)) {
+            return array_search($column, $mappings, true);
+        }
+
+        $alias = $this->columnAliases()[strtolower($column)] ?? null;
+
+        if ($alias) {
+            return $alias;
+        }
+
+        return str_contains(strtolower($column), 'image') ? 'image' : null;
     }
 
     private function steps()
@@ -136,6 +160,11 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                 ]),
             Step::make('Column mapping')
                 ->schema([
+                    Forms\Components\Placeholder::make('collection_mapping_hint')
+                        ->label('')
+                        ->content('You can map multiple Excel columns to "Collection level (name based)". They are applied left to right — each column is the next sub-collection level. Empty columns in between are skipped.')
+                        ->visible(fn ($get) => filled($get('excel_columns'))),
+
                     Repeater::make('column_mapping')
                         ->label('Column Mappings')
                         ->schema([
@@ -192,17 +221,9 @@ class ManageCollectionImports extends BaseManageRelatedRecords
                         // Now populate your repeater / form state
                         $set('excel_columns', $columns);
                         $set('column_mapping', collect($columns)->map(function ($col) use ($mappings) {
-                            $preMap = null;
-
-                            if (in_array($col, $mappings)) {
-                                $preMap = array_search($col, $mappings, true);
-                            } else {
-                                $preMap = str_contains($col, 'image') ? 'image' : null;
-                            }
-
                             return [
                                 'column_name' => $col,
-                                'mapped_to' => $preMap,
+                                'mapped_to' => $this->premapColumn($col, $mappings),
                             ];
                         })->toArray());
                     } catch (\Throwable $e) {

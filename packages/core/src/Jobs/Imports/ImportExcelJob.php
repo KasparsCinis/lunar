@@ -95,7 +95,6 @@ class ImportExcelJob implements ShouldQueue
             $mapping = $this->import->column_mapping;
 
             $collection = Collection::findOrFail($this->import->collection_id);
-            $collection->load('children');
 
             /** @var $rowModel Row */
             foreach ($sheet->getRowIterator() as $rowIndex => $rowModel) {
@@ -120,14 +119,23 @@ class ImportExcelJob implements ShouldQueue
                 }
 
                 $data = [
-                    'images' => []
+                    'images' => [],
+                    'collection_names' => [],
                 ];
 
                 foreach ($mapping as $key => $columnType) {
                     if (is_null($columnType)) {
                         continue;
                     }
-                    if (is_null($row[$key]) || $row[$key] == '') {
+
+                    if ($columnType == 'collection_name') {
+                        $value = $row[$key] ?? null;
+                        $value = is_null($value) ? null : trim((string) $value);
+                        $data['collection_names'][$key] = ($value === '') ? null : $value;
+                        continue;
+                    }
+
+                    if (is_null($row[$key]) || trim((string) $row[$key]) === '') {
                         continue;
                     }
 
@@ -137,6 +145,8 @@ class ImportExcelJob implements ShouldQueue
                         $data[$columnType] = $row[$key];
                     }
                 }
+
+                $targetCollection = $this->resolveTargetCollection($collection, $data['collection_names']);
 
                 if (isset($data['id']) && $product = Product::find($data['id'])) {
                     /** @var $product Product */
@@ -174,23 +184,8 @@ class ImportExcelJob implements ShouldQueue
                         $product->variant->saveOrFail();
                     }
 
-                    if (!empty($data['collection_name'])) {
-                        $subCollection = $this->findSubCollectionByName($collection, $data['collection_name']);
-                        if ($subCollection && !$product->collections()->whereKey($subCollection->id)->exists()) {
-                            $product->collections()->attach($subCollection->id, [
-                                'position' => $this->getNextCollectionPosition($subCollection),
-                            ]);
-                        }
-                    }
+                    $this->attachProductToCollection($product, $collection, $targetCollection, true);
                 } else {
-                    $targetCollection = $collection;
-                    if (!empty($data['collection_name'])) {
-                        $subCollection = $this->findSubCollectionByName($collection, $data['collection_name']);
-                        if ($subCollection) {
-                            $targetCollection = $subCollection;
-                        }
-                    }
-
                     $product = Product::create([
                         'status' => 'published',
                         'product_type_id' => ProductType::first()->id,
@@ -206,9 +201,7 @@ class ImportExcelJob implements ShouldQueue
                         ]),
                     ]);
 
-                    $product->collections()->attach($targetCollection->id, [
-                        'position' => $this->getNextCollectionPosition($targetCollection),
-                    ]);
+                    $this->attachProductToCollection($product, $collection, $targetCollection, false);
 
                     $variant = $product->variants()->create([
                         'sku' => $data['sku'] ?? 'SKU-' . uniqid(),
@@ -322,6 +315,74 @@ class ImportExcelJob implements ShouldQueue
         return $this->collectionPositions[$collection->id]++;
     }
 
+    protected function resolveTargetCollection(Collection $root, array $namesByColumn): Collection
+    {
+        ksort($namesByColumn);
+
+        $current = $root;
+        $previousKey = null;
+
+        foreach ($namesByColumn as $columnKey => $name) {
+            $name = is_null($name) ? '' : trim((string) $name);
+
+            if ($name === '') {
+                continue;
+            }
+
+            $hasSkippedLevel = $previousKey !== null
+                && $this->hasEmptyCollectionColumnBetween($namesByColumn, $previousKey, $columnKey);
+
+            $child = $hasSkippedLevel
+                ? $this->findDescendantCollectionByName($current, $name)
+                : $this->findSubCollectionByName($current, $name);
+
+            if (!$child) {
+                break;
+            }
+
+            $current = $child;
+            $previousKey = $columnKey;
+        }
+
+        return $current;
+    }
+
+    protected function hasEmptyCollectionColumnBetween(array $namesByColumn, int $fromKey, int $toKey): bool
+    {
+        foreach ($namesByColumn as $key => $name) {
+            if ($key <= $fromKey || $key >= $toKey) {
+                continue;
+            }
+
+            if (is_null($name) || trim((string) $name) === '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function attachProductToCollection(
+        Product $product,
+        Collection $importCollection,
+        Collection $targetCollection,
+        bool $isUpdate
+    ): void {
+        if ($isUpdate) {
+            if ($targetCollection->id === $importCollection->id) {
+                return;
+            }
+
+            if ($product->collections()->whereKey($targetCollection->id)->exists()) {
+                return;
+            }
+        }
+
+        $product->collections()->attach($targetCollection->id, [
+            'position' => $this->getNextCollectionPosition($targetCollection),
+        ]);
+    }
+
     protected function findSubCollectionByName(Collection $parent, string $name): ?Collection
     {
         $name = trim($name);
@@ -330,6 +391,8 @@ class ImportExcelJob implements ShouldQueue
             return null;
         }
 
+        $parent->loadMissing('children');
+
         foreach ($parent->children as $child) {
             foreach (['en', 'lv'] as $locale) {
                 $childName = trim((string) $child->translateAttribute('name', $locale));
@@ -337,6 +400,35 @@ class ImportExcelJob implements ShouldQueue
                 if ($childName !== '' && strcasecmp($childName, $name) === 0) {
                     return $child;
                 }
+            }
+        }
+
+        return null;
+    }
+
+    protected function findDescendantCollectionByName(Collection $parent, string $name): ?Collection
+    {
+        $name = trim($name);
+
+        if ($name === '') {
+            return null;
+        }
+
+        $parent->loadMissing('children');
+
+        foreach ($parent->children as $child) {
+            foreach (['en', 'lv'] as $locale) {
+                $childName = trim((string) $child->translateAttribute('name', $locale));
+
+                if ($childName !== '' && strcasecmp($childName, $name) === 0) {
+                    return $child;
+                }
+            }
+
+            $found = $this->findDescendantCollectionByName($child, $name);
+
+            if ($found) {
+                return $found;
             }
         }
 
