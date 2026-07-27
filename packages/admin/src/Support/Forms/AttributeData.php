@@ -3,6 +3,7 @@
 namespace Lunar\Admin\Support\Forms;
 
 use Filament\Forms\Components\Component;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Support\Collection;
 use Lunar\Admin\Support\FieldTypes\Dropdown;
 use Lunar\Admin\Support\FieldTypes\File;
@@ -13,6 +14,7 @@ use Lunar\Admin\Support\FieldTypes\Toggle;
 use Lunar\Admin\Support\FieldTypes\TranslatedText;
 use Lunar\Admin\Support\FieldTypes\Vimeo;
 use Lunar\Admin\Support\FieldTypes\YouTube;
+use Lunar\Base\FieldType;
 use Lunar\FieldTypes\Dropdown as DrodownFieldType;
 use Lunar\FieldTypes\File as FileFieldType;
 use Lunar\FieldTypes\ListField as ListFieldFieldType;
@@ -23,6 +25,8 @@ use Lunar\FieldTypes\TranslatedText as TranslatedTextFieldType;
 use Lunar\FieldTypes\Vimeo as VimeoFieldType;
 use Lunar\FieldTypes\YouTube as YouTubeFieldType;
 use Lunar\Models\Attribute;
+use Lunar\Models\Language;
+use Tiptap\Editor;
 
 class AttributeData
 {
@@ -52,21 +56,20 @@ class AttributeData
                 $attribute->translate('name')
             )
             ->formatStateUsing(function ($state) use ($attribute) {
-                if (
-                    ! $state ||
-                    (get_class($state) != $attribute->type)
-                ) {
-                    return new $attribute->type;
+                $value = $this->unwrapFieldValue($state);
+
+                if ($value === null) {
+                    $value = $this->unwrapFieldValue((new $attribute->type)->getValue());
                 }
 
-                return $state;
+                if ($attribute->type === TranslatedTextFieldType::class) {
+                    return $this->normalizeTranslatedTextValue($value);
+                }
+
+                return is_string($value) && blank($value) ? null : $value;
             })
             ->mutateStateForValidationUsing(function ($state) {
-                if ($state instanceof \Lunar\Base\FieldType) {
-                    return $state->getValue();
-                }
-
-                return $state;
+                return $this->unwrapFieldValue($state);
             })
             ->mutateDehydratedStateUsing(function ($state) use ($attribute) {
                 if ($attribute->type == FileFieldType::class) {
@@ -76,14 +79,25 @@ class AttributeData
                     return $instance;
                 }
 
-                if (
-                    ! $state ||
-                    (get_class($state) != $attribute->type)
-                ) {
-                    return new $attribute->type;
+                if ($state instanceof FieldType) {
+                    return $state;
                 }
 
-                return $state;
+                if ($attribute->type === TranslatedTextFieldType::class) {
+                    $state = $this->normalizeTranslatedTextValueForStorage($state);
+                    $instance = new $attribute->type;
+                    $instance->setValue(collect($state ?? []));
+
+                    return $instance;
+                }
+
+                $instance = new $attribute->type;
+
+                if ($state !== null && $state !== '') {
+                    $instance->setValue($state);
+                }
+
+                return $instance;
             })
             ->required($attribute->required)
             ->default($attribute->default_value);
@@ -113,5 +127,92 @@ class AttributeData
         foreach ($this->fieldTypes as $fieldType) {
             $fieldType::synthesize();
         }
+    }
+
+    protected function unwrapFieldValue(mixed $value): mixed
+    {
+        if ($value instanceof FieldType) {
+            return $this->unwrapFieldValue($value->getValue());
+        }
+
+        if ($value instanceof Arrayable) {
+            $value = $value->toArray();
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        return collect($value)
+            ->map(fn (mixed $item): mixed => $this->unwrapFieldValue($item))
+            ->all();
+    }
+
+    protected function normalizeTranslatedTextValue(mixed $value): array
+    {
+        $defaults = $this->getTranslatedTextDefaults();
+
+        if ($value === null || $value === []) {
+            return $defaults;
+        }
+
+        if (! is_array($value)) {
+            $defaultLanguage = array_key_first($defaults);
+
+            if ($defaultLanguage === null) {
+                return [];
+            }
+
+            return array_replace($defaults, [
+                $defaultLanguage => $value,
+            ]);
+        }
+
+        return array_replace(
+            $defaults,
+            collect($value)
+                ->map(fn (mixed $item): string => filled($item) ? (string) $item : '')
+                ->all(),
+        );
+    }
+
+    protected function getTranslatedTextDefaults(): array
+    {
+        static $defaults = null;
+
+        if (is_array($defaults)) {
+            return $defaults;
+        }
+
+        $defaults = Language::query()
+            ->orderBy('default', 'desc')
+            ->get(['code'])
+            ->mapWithKeys(fn (Language $language): array => [$language->code => ''])
+            ->all();
+
+        return $defaults;
+    }
+
+    protected function normalizeTranslatedTextValueForStorage(mixed $value): mixed
+    {
+        if ($value instanceof Arrayable) {
+            $value = $value->toArray();
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        return collect($value)
+            ->map(function (mixed $item): mixed {
+                $item = $this->unwrapFieldValue($item);
+
+                if (is_array($item)) {
+                    return (new Editor)->setContent($item)->getHTML();
+                }
+
+                return $item ?? '';
+            })
+            ->all();
     }
 }
