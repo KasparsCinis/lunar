@@ -65,6 +65,10 @@ class ImportStockJob implements ShouldQueue
             $spreadsheet = IOFactory::load($excelPath);
             $sheet = $spreadsheet->getActiveSheet();
             $mapping = $this->import->column_mapping;
+            $setMissingStockToZero = (bool) ($mapping['set_missing_stock_to_zero'] ?? false);
+            unset($mapping['set_missing_stock_to_zero']);
+
+            $foundVariantIds = [];
 
             /** @var $rowModel Row */
             foreach ($sheet->getRowIterator() as $rowIndex => $rowModel) {
@@ -104,6 +108,8 @@ class ImportStockJob implements ShouldQueue
                 $sku = isset($data['sku']) ? trim((string) $data['sku']) : '';
 
                 if ($sku !== '' && $variant = ProductVariant::whereRaw('TRIM(sku) = ?', [$sku])->first()) {
+                    $foundVariantIds[] = $variant->id;
+
                     if (array_key_exists('stock', $data)) {
                         $variant->stock = $data['stock'];
                     }
@@ -138,6 +144,18 @@ class ImportStockJob implements ShouldQueue
                     gc_collect_cycles();
                     DB::disconnect();
                 }
+            }
+
+            if ($setMissingStockToZero) {
+                $this->import->progress = 'Setting stock to 0 for variants not in Excel';
+                $this->import->saveOrFail();
+
+                $query = ProductVariant::query();
+                $foundVariantIds = array_values(array_unique($foundVariantIds));
+                if (!empty($foundVariantIds)) {
+                    $query->whereNotIn('id', $foundVariantIds);
+                }
+                $query->update(['stock' => 0]);
             }
 
             if ($excelPath) {

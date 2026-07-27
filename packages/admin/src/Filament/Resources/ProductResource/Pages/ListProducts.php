@@ -3,6 +3,7 @@
 namespace Lunar\Admin\Filament\Resources\ProductResource\Pages;
 
 use Filament\Actions;
+use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
@@ -104,6 +105,11 @@ class ListProducts extends BaseListRecords
                                     ->options(fn (callable $get) => $get('excel_headers') ?? [])
                                     ->nullable()
                                     ->hint('Optional. Updates the variant base price (default currency, min. qty 1). Rows with an empty price cell keep the existing price.'),
+
+                                Checkbox::make('set_missing_stock_to_zero')
+                                    ->label('Set stock to 0 if not in excel')
+                                    ->helperText('Any product variant whose SKU is not in this file will have its stock set to 0.')
+                                    ->default(false),
                             ]),
                     ])
                         ->skippable(false),
@@ -111,7 +117,9 @@ class ListProducts extends BaseListRecords
                 ->action(function (array $data, Form $form) {
                     $record = Import::create([
                         'status' => Import::STATUS_PENDING,
-                        'column_mapping' => $data['mapping'],
+                        'column_mapping' => array_merge($data['mapping'], [
+                            'set_missing_stock_to_zero' => (bool) ($data['set_missing_stock_to_zero'] ?? false),
+                        ]),
                         'progress' => 'Preparing to import',
                         'type' => Import::TYPE_INVENTORY
                     ]);
