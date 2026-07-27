@@ -17,7 +17,12 @@ class TranslatedTextSynth extends AbstractFieldSynth
         $languages = Language::orderBy('default', 'desc')->get();
 
         return [
-            $languages->mapWithKeys(fn ($language) => [$language->code => new Text((string) $target->getValue()->get($language->code))]
+            $languages->mapWithKeys(
+                fn ($language) => [
+                    $language->code => new Text(
+                        (string) $target->getValueForLocale($language->code)
+                    ),
+                ]
             )->toArray(),
             [],
         ];
@@ -33,15 +38,26 @@ class TranslatedTextSynth extends AbstractFieldSynth
 
     public function get(&$target, $key)
     {
-        return $target->{$key};
+        return $target->getValueForLocale($key)?->getValue() ?? '';
     }
 
     public function set(&$target, $key, $value)
     {
         $collectionValue = $target->getValue();
-        $field = $collectionValue->get($key);
+        $field = $target->getValueForLocale($key);
+
+        if (! $field instanceof Text) {
+            $field = new Text;
+        }
 
         $field->setValue($value);
+
+        // Drop any case-variant of this locale before writing the canonical key.
+        foreach ($collectionValue->keys() as $existingKey) {
+            if (strcasecmp((string) $existingKey, (string) $key) === 0) {
+                $collectionValue->forget($existingKey);
+            }
+        }
 
         $collectionValue->put($key, $field);
 

@@ -56,7 +56,28 @@ trait HasTranslations
             return $translations;
         }
 
-        $value = Arr::get($translations, $locale ?: app()->getLocale(), Arr::first($translations));
+        $locale = $locale ?: app()->getLocale();
+
+        $value = null;
+
+        if ($field instanceof \Lunar\FieldTypes\TranslatedText) {
+            $value = $field->getValueForLocale($locale);
+        }
+
+        if (! $value) {
+            $value = Arr::get($translations, $locale);
+
+            if (! $value && $translations instanceof \Illuminate\Support\Collection) {
+                $matchedKey = $translations->keys()->first(
+                    fn ($key) => strcasecmp((string) $key, $locale) === 0
+                );
+                $value = $matchedKey !== null ? $translations->get($matchedKey) : null;
+            }
+        }
+
+        if (! $value) {
+            $value = Arr::first($translations);
+        }
 
         // When we don't have a value, we just return null as it may not have a value.
         if (! $value) {

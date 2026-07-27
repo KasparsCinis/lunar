@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 use JsonSerializable;
 use Lunar\Base\FieldType;
 use Lunar\Exceptions\FieldTypeException;
+use Lunar\Models\Language;
 
 class TranslatedText implements FieldType, JsonSerializable
 {
@@ -49,6 +50,20 @@ class TranslatedText implements FieldType, JsonSerializable
     }
 
     /**
+     * Get a locale value, matching language codes case-insensitively.
+     */
+    public function getValueForLocale(string $locale): mixed
+    {
+        $matchedKey = $this->findLocaleKey($this->value ?? collect(), $locale);
+
+        if ($matchedKey === null) {
+            return null;
+        }
+
+        return $this->value->get($matchedKey);
+    }
+
+    /**
      * Set the value of this field.
      *
      * @param  Collection  $value
@@ -73,7 +88,53 @@ class TranslatedText implements FieldType, JsonSerializable
             }
         }
 
-        $this->value = $value;
+        $this->value = $this->normalizeLocaleKeys($value);
+    }
+
+    /**
+     * Remap translation keys onto configured language codes (e.g. LV → lv).
+     */
+    protected function normalizeLocaleKeys(Collection $value): Collection
+    {
+        try {
+            $codes = Language::query()->pluck('code');
+        } catch (\Throwable) {
+            return $value;
+        }
+
+        if ($codes->isEmpty()) {
+            return $value;
+        }
+
+        $normalized = collect();
+
+        foreach ($codes as $code) {
+            $matchedKey = $this->findLocaleKey($value, (string) $code);
+
+            if ($matchedKey !== null) {
+                $normalized->put($code, $value->get($matchedKey));
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Prefer an exact locale key, otherwise a case-insensitive match.
+     */
+    protected function findLocaleKey(Collection $value, string $locale): int|string|null
+    {
+        $exact = $value->keys()->first(
+            fn ($key) => (string) $key === $locale
+        );
+
+        if ($exact !== null) {
+            return $exact;
+        }
+
+        return $value->keys()->first(
+            fn ($key) => strcasecmp((string) $key, $locale) === 0
+        );
     }
 
     /**
