@@ -101,7 +101,9 @@ class ImportStockJob implements ShouldQueue
                     $data[$key] = $row[$columnType];
                 }
 
-                if (isset($data['sku']) && $variant = ProductVariant::where('sku', '=', $data['sku'])->first()) {
+                $sku = isset($data['sku']) ? trim((string) $data['sku']) : '';
+
+                if ($sku !== '' && $variant = ProductVariant::whereRaw('TRIM(sku) = ?', [$sku])->first()) {
                     if (array_key_exists('stock', $data)) {
                         $variant->stock = $data['stock'];
                     }

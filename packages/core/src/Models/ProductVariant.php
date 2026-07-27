@@ -2,6 +2,7 @@
 
 namespace Lunar\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -85,6 +86,39 @@ class ProductVariant extends BaseModel implements Contracts\ProductVariant, HasT
     protected static function newFactory()
     {
         return ProductVariantFactory::new();
+    }
+
+    protected function sku(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $this->trimIdentifier($value),
+        );
+    }
+
+    protected function gtin(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $this->trimIdentifier($value),
+        );
+    }
+
+    protected function mpn(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $this->trimIdentifier($value),
+        );
+    }
+
+    protected function ean(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $this->trimIdentifier($value),
+        );
+    }
+
+    protected function trimIdentifier(?string $value): ?string
+    {
+        return $value === null ? null : trim($value);
     }
 
     public function product(): BelongsTo
