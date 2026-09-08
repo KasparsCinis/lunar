@@ -1,0 +1,190 @@
+<?php
+
+namespace Lunar\Jobs\Imports;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Lunar\Facades\DB;
+use Lunar\Helpers\CurrencyHelper;
+use Lunar\Models\Currency;
+use Lunar\Models\CustomerGroup;
+use Lunar\Models\Excel\Import;
+use Lunar\Models\ProductVariant;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Row;
+
+class ImportPricesJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public $timeout = 0;
+    public $failOnTimeout = true;
+
+    protected string $importId;
+    protected Import $import;
+
+    public function __construct(string $importId)
+    {
+        $this->importId = $importId;
+    }
+
+    public function handle(): void
+    {
+        DB::disableQueryLog();
+
+        try {
+            $this->import = Import::findOrFail($this->importId);
+
+            $disk = Storage::disk(config('media-library.disk_name'));
+            $excelPath = "";
+
+            $excelMedia = $this->import->getFirstMedia('import_excel');
+            if (!$excelMedia) {
+                $this->import->status = Import::STATUS_ERROR;
+                $this->import->progress = 'No Excel file attached to import.';
+                $this->import->saveOrFail();
+                return;
+            } else {
+                /** Download excel */
+                $excelPath = tempnam(sys_get_temp_dir(), 'excel_');
+                $stream = $disk->readStream($excelMedia->getPathRelativeToRoot());
+
+                file_put_contents($excelPath, stream_get_contents($stream));
+                fclose($stream);
+            }
+
+            $this->import->status = Import::STATUS_IN_PROGRESS;
+            $this->import->progress = 'Updating prices';
+            $this->import->saveOrFail();
+
+            $spreadsheet = IOFactory::load($excelPath);
+            $sheet = $spreadsheet->getActiveSheet();
+            $mapping = $this->import->column_mapping;
+
+            $currency = Currency::getDefault();
+            if (!$currency) {
+                $this->import->status = Import::STATUS_ERROR;
+                $this->import->progress = 'No default currency configured.';
+                $this->import->saveOrFail();
+                return;
+            }
+
+            $customerGroupsByHandle = [];
+            foreach (CustomerGroup::query()->get(['id', 'handle']) as $group) {
+                $customerGroupsByHandle[strtolower(trim((string) $group->handle))] = $group;
+            }
+
+            /** @var $rowModel Row */
+            foreach ($sheet->getRowIterator() as $rowIndex => $rowModel) {
+                $cellIterator = $rowModel->getCellIterator();
+                $cellIterator->setIterateOnlyExistingCells(false);
+
+                $row = [];
+                foreach ($cellIterator as $cell) {
+                    $row[] = $cell->getValue();
+                }
+
+                if ($rowIndex == 1) {
+                    continue;
+                }
+                if (!array_filter($row)) {
+                    continue;
+                }
+
+                if ($rowIndex % 20 == 0) {
+                    $this->import->progress = "Updated {$rowIndex} rows";
+                    $this->import->saveOrFail();
+                }
+
+                $data = [];
+
+                foreach ($mapping as $key => $columnType) {
+                    if (is_null($columnType)) {
+                        continue;
+                    }
+                    if (!array_key_exists($columnType, $row)) {
+                        continue;
+                    }
+                    if (is_null($row[$columnType]) || $row[$columnType] === '') {
+                        continue;
+                    }
+
+                    $data[$key] = $row[$columnType];
+                }
+
+                $sku = isset($data['sku']) ? trim((string) $data['sku']) : '';
+                $groupHandle = isset($data['group']) ? trim((string) $data['group']) : '';
+
+                if ($sku === '' || $groupHandle === '' || !array_key_exists('price', $data)) {
+                    continue;
+                }
+
+                if (strcasecmp($groupHandle, 'PAR') === 0) {
+                    $groupHandle = 'retail';
+                }
+
+                $customerGroup = $customerGroupsByHandle[strtolower($groupHandle)] ?? null;
+                if (!$customerGroup) {
+                    continue;
+                }
+
+                $variant = ProductVariant::whereRaw('TRIM(sku) = ?', [$sku])->first();
+                if (!$variant) {
+                    continue;
+                }
+
+                $cleaned = CurrencyHelper::cleanup($data['price']);
+                if ($cleaned === null || $cleaned === '' || !is_numeric($cleaned)) {
+                    continue;
+                }
+
+                $minor = (int) bcmul((string) $cleaned, (string) $currency->factor, 0);
+                $priceModel = $variant->prices()
+                    ->where('currency_id', $currency->id)
+                    ->where('min_quantity', 1)
+                    ->where('customer_group_id', $customerGroup->id)
+                    ->first();
+
+                if ($priceModel) {
+                    $priceModel->update(['price' => $minor]);
+                } else {
+                    $variant->prices()->create([
+                        'currency_id' => $currency->id,
+                        'customer_group_id' => $customerGroup->id,
+                        'min_quantity' => 1,
+                        'price' => $minor,
+                    ]);
+                }
+
+                if ($rowIndex % 25 === 0) {
+                    gc_collect_cycles();
+                    DB::disconnect();
+                }
+            }
+
+            if ($excelPath) {
+                @unlink($excelPath);
+            }
+
+            $this->import->status = Import::STATUS_SUCCESS;
+            $this->import->progress = 'Prices updated';
+            $this->import->saveOrFail();
+        } catch (\Exception | \Throwable $e) {
+            Log::error('Failed to import prices', [
+                'error' => $e->getMessage(),
+            ]);
+
+            if ($this->import) {
+                $this->import->status = Import::STATUS_ERROR;
+                $this->import->progress = Str::limit('Failed - ' . $e->getMessage(), 200);
+                $this->import->saveOrFail();
+            }
+        }
+    }
+}

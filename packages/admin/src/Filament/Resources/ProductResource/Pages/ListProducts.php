@@ -22,6 +22,7 @@ use Lunar\Admin\Filament\Resources\ProductResource;
 use Lunar\Admin\Support\Pages\BaseListRecords;
 use Lunar\Facades\DB;
 use Lunar\Helpers\CurrencyHelper;
+use Lunar\Jobs\Imports\ImportPricesJob;
 use Lunar\Jobs\Imports\ImportStockJob;
 use Lunar\Models\Attribute;
 use Lunar\Models\Currency;
@@ -40,6 +41,92 @@ class ListProducts extends BaseListRecords
     protected function getDefaultHeaderActions(): array
     {
         return [
+            Actions\Action::make('updatePrices')
+                ->label('Update prices')
+                ->modalHeading('Update product prices')
+                ->form([
+                    Wizard::make([
+                        Step::make('Upload file')
+                            ->schema([
+                                SpatieMediaLibraryFileUpload::make('excel_file')
+                                    ->collection('import_excel')
+                                    ->label('Excel File')
+                                    ->required()
+                                    ->acceptedFileTypes([
+                                        'application/vnd.ms-excel',
+                                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                    ])
+                                    ->maxSize(10240)
+                                    ->preserveFilenames()
+                                    ->downloadable()
+                                    ->openable()
+                                    ->hint('Upload a single Excel file (.xls or .xlsx)')
+                                    ->disk(config('media-library.disk_name'))
+                                    ->reactive()
+                                    ->afterStateUpdated(function (TemporaryUploadedFile $state, callable $set) {
+                                        $tempPath = $state->getRealPath();
+
+                                        try {
+                                            $spreadsheet = IOFactory::load($tempPath);
+                                            $sheet = $spreadsheet->getSheet(0);
+                                            $headerRow = $sheet->rangeToArray(
+                                                'A1:' . $sheet->getHighestColumn() . '1',
+                                                null,
+                                                true,
+                                                true,
+                                                true
+                                            )[1];
+
+                                            $columns = array_values($headerRow);
+
+                                            $set('excel_headers', $columns);
+                                        } catch (\Throwable $e) {
+                                            logger()->error('Failed to parse Excel: ' . $e->getMessage());
+                                        }
+                                    }),
+                            ]),
+                        Step::make('Map fields')
+                            ->schema([
+                                Select::make('mapping.sku')
+                                    ->label('SKU')
+                                    ->options(fn (callable $get) =>
+                                        $get('excel_headers') ?? []
+                                    )
+                                    ->required(),
+
+                                Select::make('mapping.group')
+                                    ->label('Group')
+                                    ->options(fn (callable $get) =>
+                                        $get('excel_headers') ?? []
+                                    )
+                                    ->required()
+                                    ->hint('Customer group handle. Rows with handle PAR are mapped to the retail group.'),
+
+                                Select::make('mapping.price')
+                                    ->label('Price')
+                                    ->options(fn (callable $get) =>
+                                        $get('excel_headers') ?? []
+                                    )
+                                    ->required(),
+                            ]),
+                    ])
+                        ->skippable(false),
+                ])
+                ->action(function (array $data, Form $form) {
+                    $record = Import::create([
+                        'status' => Import::STATUS_PENDING,
+                        'column_mapping' => $data['mapping'],
+                        'progress' => 'Preparing to import',
+                        'type' => Import::TYPE_PRICES,
+                    ]);
+
+                    $form->model($record)->saveRelationships();
+
+                    ImportPricesJob::dispatch($record->id)
+                        ->delay(now()->addSeconds(5));
+
+                    return $this->redirect("/admin/imports/{$record->id}/edit");
+                }),
             Actions\Action::make('updateStock')
                 ->label('Update stock')
                 ->modalHeading('Update product stocks')
