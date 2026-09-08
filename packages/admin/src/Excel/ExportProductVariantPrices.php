@@ -13,7 +13,7 @@ class ExportProductVariantPrices
 {
     public const DEFAULT_GROUP_HANDLE = 'PAR';
 
-    public static function download(array $groupHandles): BinaryFileResponse
+    public static function download(array $groupHandles, array $emptyOnlyGroupHandles = []): BinaryFileResponse
     {
         $currency = Currency::getDefault();
         $factor = (int) ($currency?->factor ?? 0);
@@ -42,6 +42,16 @@ class ExportProductVariantPrices
 
         $groupIds = $customerGroups->pluck('id');
 
+        $emptyOnlyHandles = array_values(array_unique(array_filter(
+            $emptyOnlyGroupHandles,
+            fn ($handle) => filled($handle) && $handle !== self::DEFAULT_GROUP_HANDLE
+        )));
+        $emptyOnlyGroupIds = $emptyOnlyHandles === []
+            ? collect()
+            : CustomerGroup::query()
+                ->whereIn('handle', $emptyOnlyHandles)
+                ->pluck('id');
+
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
@@ -51,8 +61,20 @@ class ExportProductVariantPrices
 
         $row = 2;
 
-        ProductVariant::query()
-            ->whereHas('product', fn ($q) => $q->withoutTrashed())
+        $variantsQuery = ProductVariant::query()
+            ->whereHas('product', fn ($q) => $q->withoutTrashed());
+
+        if ($emptyOnlyGroupIds->isNotEmpty()) {
+            foreach ($emptyOnlyGroupIds as $emptyOnlyGroupId) {
+                $variantsQuery->whereDoesntHave('prices', function ($q) use ($currency, $emptyOnlyGroupId) {
+                    $q->where('currency_id', $currency?->id)
+                        ->where('min_quantity', 1)
+                        ->where('customer_group_id', $emptyOnlyGroupId);
+                });
+            }
+        }
+
+        $variantsQuery
             ->with([
                 'prices' => function ($q) use ($currency, $groupIds, $includeDefault) {
                     $q->where('currency_id', $currency?->id)

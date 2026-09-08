@@ -6,6 +6,7 @@ use Filament\Actions;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -240,8 +241,20 @@ class ListProducts extends BaseListRecords
                         ->required()
                         ->bulkToggleable()
                         ->helperText('Each selected group is exported as a row for every variant. If a variant has no price for that group, the price cell is left empty. Default (ungrouped) prices use handle PAR.'),
+                    Section::make('Only empty group prices')
+                        ->description('Optional. Leave unchecked to export every variant.')
+                        ->schema([
+                            CheckboxList::make('empty_only_group_handles')
+                                ->label('Export only if price is empty for')
+                                ->options(fn () => static::priceExportNonDefaultCustomerGroupOptions())
+                                ->bulkToggleable()
+                                ->helperText('If any groups are selected, only variants with no price for those groups are exported. When several groups are selected, all of them must be empty. Default price (PAR) cannot be used here.'),
+                        ]),
                 ])
-                ->action(fn (array $data) => ExportProductVariantPrices::download($data['customer_group_handles'] ?? [])),
+                ->action(fn (array $data) => ExportProductVariantPrices::download(
+                    $data['customer_group_handles'] ?? [],
+                    $data['empty_only_group_handles'] ?? [],
+                )),
             Actions\Action::make('syncBosch')
                 ->label('Sync Bosch')
                 ->icon('heroicon-o-arrow-path')
@@ -279,9 +292,17 @@ class ListProducts extends BaseListRecords
      */
     public static function priceExportCustomerGroupOptions(): array
     {
-        $options = [
+        return [
             ExportProductVariantPrices::DEFAULT_GROUP_HANDLE => 'Default price (PAR)',
-        ];
+        ] + static::priceExportNonDefaultCustomerGroupOptions();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function priceExportNonDefaultCustomerGroupOptions(): array
+    {
+        $options = [];
 
         foreach (CustomerGroup::query()->orderBy('name')->get(['name', 'handle']) as $group) {
             $options[$group->handle] = $group->name.' ('.$group->handle.')';
