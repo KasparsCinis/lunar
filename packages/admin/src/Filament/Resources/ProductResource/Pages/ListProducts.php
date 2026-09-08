@@ -4,6 +4,7 @@ namespace Lunar\Admin\Filament\Resources\ProductResource\Pages;
 
 use Filament\Actions;
 use Filament\Forms\Components\Checkbox;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
@@ -17,6 +18,7 @@ use Filament\Support\Enums\MaxWidth;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Lunar\Admin\Excel\ExportProductVariantPrices;
 use Lunar\Admin\Excel\ExportProductVariantStock;
 use Lunar\Admin\Filament\Resources\ProductResource;
 use Lunar\Admin\Support\Pages\BaseListRecords;
@@ -27,6 +29,7 @@ use Lunar\Jobs\Imports\ImportStockJob;
 use Lunar\Models\Attribute;
 use Lunar\Models\Currency;
 use Lunar\Models\Excel\Import;
+use Lunar\Models\CustomerGroup;
 use Lunar\Models\Product;
 use Lunar\Models\TaxClass;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -222,6 +225,23 @@ class ListProducts extends BaseListRecords
                 ->label('Download stock')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => ExportProductVariantStock::download()),
+            Actions\Action::make('downloadPrices')
+                ->label('Download prices')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->modalHeading('Download prices')
+                ->modalSubmitActionLabel('Download')
+                ->fillForm(fn (): array => [
+                    'customer_group_handles' => array_keys(static::priceExportCustomerGroupOptions()),
+                ])
+                ->form([
+                    CheckboxList::make('customer_group_handles')
+                        ->label('Customer groups')
+                        ->options(fn () => static::priceExportCustomerGroupOptions())
+                        ->required()
+                        ->bulkToggleable()
+                        ->helperText('Each selected group is exported as a row for every variant. If a variant has no price for that group, the price cell is left empty. Default (ungrouped) prices use handle PAR.'),
+                ])
+                ->action(fn (array $data) => ExportProductVariantPrices::download($data['customer_group_handles'] ?? [])),
             Actions\Action::make('syncBosch')
                 ->label('Sync Bosch')
                 ->icon('heroicon-o-arrow-path')
@@ -252,6 +272,22 @@ class ListProducts extends BaseListRecords
                     'record' => $record,
                 ])),
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function priceExportCustomerGroupOptions(): array
+    {
+        $options = [
+            ExportProductVariantPrices::DEFAULT_GROUP_HANDLE => 'Default price (PAR)',
+        ];
+
+        foreach (CustomerGroup::query()->orderBy('name')->get(['name', 'handle']) as $group) {
+            $options[$group->handle] = $group->name.' ('.$group->handle.')';
+        }
+
+        return $options;
     }
 
     public static function createActionFormInputs(): array
