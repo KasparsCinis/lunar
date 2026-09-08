@@ -100,7 +100,7 @@ class ListProducts extends BaseListRecords
                                         $get('excel_headers') ?? []
                                     )
                                     ->required()
-                                    ->hint('Customer group handle. Rows with handle PAR are mapped to the retail group.'),
+                                    ->hint('Customer group handle. Rows with handle PAR update the default (ungrouped) price.'),
 
                                 Select::make('mapping.price')
                                     ->label('Price')

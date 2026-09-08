@@ -125,13 +125,15 @@ class ImportPricesJob implements ShouldQueue
                     continue;
                 }
 
-                if (strcasecmp($groupHandle, 'PAR') === 0) {
-                    $groupHandle = 'retail';
-                }
+                $isDefaultPrice = strcasecmp($groupHandle, 'PAR') === 0;
+                $customerGroupId = null;
 
-                $customerGroup = $customerGroupsByHandle[strtolower($groupHandle)] ?? null;
-                if (!$customerGroup) {
-                    continue;
+                if (!$isDefaultPrice) {
+                    $customerGroup = $customerGroupsByHandle[strtolower($groupHandle)] ?? null;
+                    if (!$customerGroup) {
+                        continue;
+                    }
+                    $customerGroupId = $customerGroup->id;
                 }
 
                 $variant = ProductVariant::whereRaw('TRIM(sku) = ?', [$sku])->first();
@@ -145,18 +147,24 @@ class ImportPricesJob implements ShouldQueue
                 }
 
                 $minor = (int) bcmul((string) $cleaned, (string) $currency->factor, 0);
-                $priceModel = $variant->prices()
+                $priceQuery = $variant->prices()
                     ->where('currency_id', $currency->id)
-                    ->where('min_quantity', 1)
-                    ->where('customer_group_id', $customerGroup->id)
-                    ->first();
+                    ->where('min_quantity', 1);
+
+                if ($isDefaultPrice) {
+                    $priceQuery->whereNull('customer_group_id');
+                } else {
+                    $priceQuery->where('customer_group_id', $customerGroupId);
+                }
+
+                $priceModel = $priceQuery->first();
 
                 if ($priceModel) {
                     $priceModel->update(['price' => $minor]);
                 } else {
                     $variant->prices()->create([
                         'currency_id' => $currency->id,
-                        'customer_group_id' => $customerGroup->id,
+                        'customer_group_id' => $customerGroupId,
                         'min_quantity' => 1,
                         'price' => $minor,
                     ]);
