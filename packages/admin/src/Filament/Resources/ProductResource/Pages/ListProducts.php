@@ -81,9 +81,7 @@ class ListProducts extends BaseListRecords
                                                 true
                                             )[1];
 
-                                            $columns = array_values($headerRow);
-
-                                            $set('excel_headers', $columns);
+                                            $set('excel_headers', static::excelHeaderSelectOptions(array_values($headerRow)));
                                         } catch (\Throwable $e) {
                                             logger()->error('Failed to parse Excel: ' . $e->getMessage());
                                         }
@@ -94,14 +92,14 @@ class ListProducts extends BaseListRecords
                                 Select::make('mapping.sku')
                                     ->label('SKU')
                                     ->options(fn (callable $get) =>
-                                        $get('excel_headers') ?? []
+                                        static::excelHeaderSelectOptions($get('excel_headers'))
                                     )
                                     ->required(),
 
                                 Select::make('mapping.group')
                                     ->label('Group')
                                     ->options(fn (callable $get) =>
-                                        $get('excel_headers') ?? []
+                                        static::excelHeaderSelectOptions($get('excel_headers'))
                                     )
                                     ->required()
                                     ->hint('Customer group handle. Rows with handle PAR update the default (ungrouped) price.'),
@@ -109,7 +107,7 @@ class ListProducts extends BaseListRecords
                                 Select::make('mapping.price')
                                     ->label('Price')
                                     ->options(fn (callable $get) =>
-                                        $get('excel_headers') ?? []
+                                        static::excelHeaderSelectOptions($get('excel_headers'))
                                     )
                                     ->required(),
                             ]),
@@ -167,9 +165,7 @@ class ListProducts extends BaseListRecords
                                                 true
                                             )[1];
 
-                                            $columns = array_values($headerRow);
-
-                                            $set('excel_headers', $columns);
+                                            $set('excel_headers', static::excelHeaderSelectOptions(array_values($headerRow)));
                                         } catch (\Throwable $e) {
                                             logger()->error('Failed to parse Excel: ' . $e->getMessage());
                                         }
@@ -180,20 +176,20 @@ class ListProducts extends BaseListRecords
                                 Select::make('mapping.sku')
                                     ->label('SKU')
                                     ->options(fn (callable $get) =>
-                                        $get('excel_headers') ?? []
+                                        static::excelHeaderSelectOptions($get('excel_headers'))
                                     )
                                     ->required(),
 
                                 Select::make('mapping.stock')
                                     ->label('Stock')
                                     ->options(fn (callable $get) =>
-                                        $get('excel_headers') ?? []
+                                        static::excelHeaderSelectOptions($get('excel_headers'))
                                     )
                                     ->required(),
 
                                 Select::make('mapping.price')
                                     ->label('Price')
-                                    ->options(fn (callable $get) => $get('excel_headers') ?? [])
+                                    ->options(fn (callable $get) => static::excelHeaderSelectOptions($get('excel_headers')))
                                     ->nullable()
                                     ->hint('Optional. Updates the variant base price (default currency, min. qty 1). Rows with an empty price cell keep the existing price.'),
 
@@ -285,6 +281,39 @@ class ListProducts extends BaseListRecords
                     'record' => $record,
                 ])),
         ];
+    }
+
+    /**
+     * Filament Select requires string labels. Excel header rows often include empty
+     * cells as null (and sometimes numeric values), which crashes isOptionDisabled().
+     * Original 0-based column indexes are kept so mapping still matches import jobs.
+     *
+     * @param  array<int|string, mixed>|null  $headers
+     * @return array<int, string>
+     */
+    public static function excelHeaderSelectOptions(?array $headers): array
+    {
+        if ($headers === null) {
+            return [];
+        }
+
+        $options = [];
+
+        foreach ($headers as $index => $header) {
+            if ($header === null) {
+                continue;
+            }
+
+            $label = trim((string) $header);
+
+            if ($label === '') {
+                continue;
+            }
+
+            $options[(int) $index] = $label;
+        }
+
+        return $options;
     }
 
     /**

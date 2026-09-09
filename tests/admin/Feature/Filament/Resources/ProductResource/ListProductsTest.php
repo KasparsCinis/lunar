@@ -59,3 +59,19 @@ it('can create product', function () {
         'price' => '1099',
     ]);
 });
+
+it('omits blank excel headers so filament select labels are never null', function () {
+    expect(\Lunar\Admin\Filament\Resources\ProductResource\Pages\ListProducts::excelHeaderSelectOptions([
+        'SKU',
+        null,
+        'Stock',
+        '',
+        '  Price  ',
+        2024,
+    ]))->toBe([
+        0 => 'SKU',
+        2 => 'Stock',
+        4 => 'Price',
+        5 => '2024',
+    ]);
+});
