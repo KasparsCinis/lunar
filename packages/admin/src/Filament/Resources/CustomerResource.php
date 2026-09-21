@@ -178,6 +178,9 @@ class CustomerResource extends BaseResource
                     ->label(__('lunarpanel::customer.table.company_name.label'))
                     ->sortable()
                     ->searchable(),
+                Tables\Columns\TextColumn::make('users.email')
+                    ->label(__('lunarpanel::user.table.email.label'))
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('tax_identifier')
                     ->label(__('lunarpanel::customer.table.tax_identifier.label'))
                     ->sortable(),

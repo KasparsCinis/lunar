@@ -303,7 +303,7 @@ class ImportExcelJob implements ShouldQueue
         if (isset($data['sku'])) {
             $sku = trim((string) $data['sku']);
 
-            if ($sku !== '' && $variant = ProductVariant::where('sku', $sku)->first()) {
+            if ($sku !== '' && $variant = ProductVariant::whereRaw('TRIM(sku) = ?', [$sku])->first()) {
                 return $variant->product;
             }
         }

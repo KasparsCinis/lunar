@@ -32,11 +32,23 @@ class UserRelationManager extends BaseRelationManager
                 ->label(__('lunarpanel::user.table.name.label')),
             Tables\Columns\TextColumn::make('email')
                 ->label(__('lunarpanel::user.table.email.label')),
+            Tables\Columns\TextColumn::make('phone')
+                ->label(__('lunarpanel::user.table.phone.label')),
         ])->actions([
             Tables\Actions\EditAction::make('edit')
                 ->after(
                     fn (Model $record) => CustomerUserEdited::dispatch($record)
                 )
+                ->using(function (Model $record, array $data): Model {
+                    $phone = $data['phone'] ?? null;
+                    unset($data['phone']);
+
+                    $record->fill($data);
+                    $record->phone = $phone;
+                    $record->save();
+
+                    return $record;
+                })
                 ->form([
                     Group::make([
                         TextInput::make('email')
@@ -45,6 +57,14 @@ class UserRelationManager extends BaseRelationManager
                             )
                             ->required()
                             ->email()
+                            ->columnSpan(2),
+                        TextInput::make('phone')
+                            ->label(
+                                __('lunarpanel::user.form.phone.label')
+                            )
+                            ->tel()
+                            ->nullable()
+                            ->maxLength(255)
                             ->columnSpan(2),
                         TextInput::make('password')
                             ->label(

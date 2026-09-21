@@ -65,7 +65,7 @@ class SyncBoschProducts
                 continue;
             }
 
-            $variant = ProductVariant::query()->where('sku', $article)->first();
+            $variant = ProductVariant::query()->whereRaw('TRIM(sku) = ?', [$article])->first();
             if (! $variant) {
                 continue;
             }

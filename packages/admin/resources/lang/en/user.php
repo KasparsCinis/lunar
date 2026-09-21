@@ -13,11 +13,17 @@ return [
         'email' => [
             'label' => 'Email',
         ],
+        'phone' => [
+            'label' => 'Phone',
+        ],
     ],
 
     'form' => [
         'email' => [
             'label' => 'Email',
+        ],
+        'phone' => [
+            'label' => 'Phone',
         ],
         'password' => [
             'label' => 'New Password',
