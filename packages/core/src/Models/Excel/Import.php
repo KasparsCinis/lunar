@@ -31,6 +31,7 @@ class Import extends BaseModel implements HasMedia
     const TYPE_COLLECTION = 1;
     const TYPE_INVENTORY = 2;
     const TYPE_PRICES = 3;
+    const TYPE_BOSCH = 4;
 
     protected $table = 'imports';
     protected $fillable = [

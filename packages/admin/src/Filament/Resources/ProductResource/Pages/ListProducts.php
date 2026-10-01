@@ -35,8 +35,7 @@ use Lunar\Models\Product;
 use Lunar\Models\TaxClass;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Filament\Forms\Form;
-use Filament\Notifications\Notification;
-use Lunar\Admin\Actions\Bosch\SyncBoschProducts;
+use Lunar\Admin\Jobs\Bosch\SyncBoschProductsJob;
 
 class ListProducts extends BaseListRecords
 {
@@ -256,22 +255,17 @@ class ListProducts extends BaseListRecords
                 ->icon('heroicon-o-arrow-path')
                 ->requiresConfirmation()
                 ->modalHeading('Sync products from Bosch')
-                ->modalDescription('Fetches the Bosch XML feed and updates stock')
+                ->modalDescription('Queues a Bosch feed sync. Stock and retail prices update in the background, and the next screen shows progress.')
                 ->action(function () {
-                    try {
-                        $result = app(SyncBoschProducts::class)();
-                        Notification::make()
-                            ->title('Bosch sync completed')
-                            ->body("Updated {$result['updated']} variant(s); {$result['in_feed']} item(s) in feed.")
-                            ->success()
-                            ->send();
-                    } catch (\Throwable $e) {
-                        Notification::make()
-                            ->title('Bosch sync failed')
-                            ->body($e->getMessage())
-                            ->danger()
-                            ->send();
-                    }
+                    $record = Import::create([
+                        'status' => Import::STATUS_PENDING,
+                        'progress' => 'Waiting to start',
+                        'type' => Import::TYPE_BOSCH,
+                    ]);
+
+                    SyncBoschProductsJob::dispatch($record->id);
+
+                    return $this->redirect("/admin/imports/{$record->id}/edit");
                 }),
             Actions\CreateAction::make()->createAnother(false)->form(
                     static::createActionFormInputs()

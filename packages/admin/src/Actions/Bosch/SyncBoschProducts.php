@@ -12,9 +12,10 @@ use Throwable;
 class SyncBoschProducts
 {
     /**
+     * @param  (callable(string): void)|null  $onProgress
      * @return array{updated: int, in_feed: int}
      */
-    public function __invoke(): array
+    public function __invoke(?callable $onProgress = null): array
     {
         $url = config('lunar.panel.bosch.api_url');
         $requestFrom = config('lunar.panel.bosch.request_from');
@@ -24,7 +25,10 @@ class SyncBoschProducts
             throw new \RuntimeException('Bosch sync is not configured. Set BOSCH_API_URL, BOSCH_API_REQUESTFROM, and BOSCH_API_PASSCODE in your environment.');
         }
 
-        $response = Http::timeout(300)
+        $this->report($onProgress, 'Fetching Bosch product feed');
+
+        $response = Http::connectTimeout(30)
+            ->timeout(0)
             ->accept('application/xml, text/xml, */*')
             ->asForm()
             ->withoutVerifying()
@@ -52,47 +56,76 @@ class SyncBoschProducts
         }
 
         $products = $xml->xpath('//Product') ?: $xml->xpath('//product') ?: [];
+        $total = count($products);
         $updated = 0;
+        $processed = 0;
 
         $currency = Currency::getDefault();
         if (! $currency) {
             throw new \RuntimeException('No default currency is configured.');
         }
 
+        $this->report($onProgress, $total > 0
+            ? "Found {$total} products, updating stock and prices"
+            : 'Bosch feed contained no products');
+
         foreach ($products as $product) {
+            $processed++;
             $article = isset($product->Article) ? trim((string) $product->Article) : '';
-            if ($article === '') {
-                continue;
-            }
 
-            $variant = ProductVariant::query()->whereRaw('TRIM(sku) = ?', [$article])->first();
-            if (! $variant) {
-                continue;
-            }
+            if ($article !== '') {
+                $variant = ProductVariant::query()->whereRaw('TRIM(sku) = ?', [$article])->first();
 
-            $balance = isset($product->AvailableBalance) ? trim((string) $product->AvailableBalance) : '';
-            if ($balance !== '') {
-                if (preg_match('/^\d+\+$/', $balance)) {
-                    $variant->stock = 999;
-                } elseif (is_numeric($balance)) {
-                    $variant->stock = (int) round((float) $balance);
+                if ($variant) {
+                    $balance = isset($product->AvailableBalance) ? trim((string) $product->AvailableBalance) : '';
+                    if ($balance !== '') {
+                        if (preg_match('/^\d+\+$/', $balance)) {
+                            $variant->stock = 999;
+                        } elseif (is_numeric($balance)) {
+                            $variant->stock = (int) round((float) $balance);
+                        }
+                    }
+
+                    $retailPrice = isset($product->RetailPrice) ? trim((string) $product->RetailPrice) : '';
+                    if ($retailPrice !== '' && is_numeric($retailPrice)) {
+                        $this->updateRetailPrice($variant, $currency, $retailPrice);
+                    }
+
+                    $variant->stock_zero_delay = null;
+                    $variant->saveOrFail();
+                    $updated++;
                 }
             }
 
-            $retailPrice = isset($product->RetailPrice) ? trim((string) $product->RetailPrice) : '';
-            if ($retailPrice !== '' && is_numeric($retailPrice)) {
-                $this->updateRetailPrice($variant, $currency, $retailPrice);
-            }
-
-            $variant->stock_zero_delay = null;
-            $variant->saveOrFail();
-            $updated++;
+            $this->reportProductProgress($onProgress, $processed, $total, $updated);
         }
 
         return [
             'updated' => $updated,
-            'in_feed' => count($products),
+            'in_feed' => $total,
         ];
+    }
+
+    /**
+     * @param  (callable(string): void)|null  $onProgress
+     */
+    private function reportProductProgress(?callable $onProgress, int $processed, int $total, int $updated): void
+    {
+        if ($processed !== 1 && $processed !== $total && $processed % 25 !== 0) {
+            return;
+        }
+
+        $this->report($onProgress, "Processed {$processed} of {$total} products, updated {$updated}");
+    }
+
+    /**
+     * @param  (callable(string): void)|null  $onProgress
+     */
+    private function report(?callable $onProgress, string $message): void
+    {
+        if ($onProgress) {
+            $onProgress($message);
+        }
     }
 
     private function updateRetailPrice(ProductVariant $variant, Currency $currency, string $rawPrice): void
